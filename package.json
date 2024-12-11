@@ -1,0 +1,25 @@
+{
+  "name": "b_sh",
+  "version": "1.0.0",
+  "description": "Raiz de Backend para o lado dos serviços hospitalares.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zaqui712/B_SH.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Zaqui712/B_SH/issues"
+  },
+  "homepage": "https://github.com/Zaqui712/B_SH#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "dotenv": "^10.0.0",
+    "pm2": "^5.1.0"
+  }
+}
