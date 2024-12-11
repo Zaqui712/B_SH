@@ -1,13 +1,13 @@
 const express = require('express');
 const app = express();
 const { getPool } = require('./db');
-const requisicoesRoutes = require('./routes/requisicoes/requisicao');
-const encomendasRoutes = require('./routes/encomendas/encomendas');
-const gerarEncomendasRoutes = require('./routes/encomendas/gerarEncomendas');
-const aprovacoesRoutes = require('./routes/aprovacoes/aprovacoes');
-const balancearStockRoutes = require('./routes/balancearStock/balancearStock');
-const checkDatabaseRoutes = require('./routes/checkDatabase/checkDatabase');
-const authRoutes = require('./routes/auth/auth');
+const requisicoesRoutes = require('./routes/Requisicoes/requisicao');
+const encomendasRoutes = require('./routes/Encomendas/encomendas');
+const gerarEncomendasRoutes = require('./routes/Encomendas/gerarEncomendas');
+const aprovacoesRoutes = require('./routes/Aprovacoes/aprovacoes');
+const balancearStockRoutes = require('./routes/BalancearStock/balancearStock');
+const checkDatabaseRoutes = require('./routes/CheckDatabase/checkDatabase');
+const authRoutes = require('./routes/Auth/auth');
 const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
