@@ -3,9 +3,9 @@ const cors = require('cors'); // Import cors
 const router = express.Router();
 const { getPool } = require('../../db'); // Updated path
 
-// Enable CORS for the backend
+// Enable CORS for the backend to allow any origin
 const corsOptions = {
-    origin: 'http://localhost:3000', // Allow the frontend domain
+    origin: '*', // Allow any origin
     methods: ['GET', 'POST'], // Allowed methods
     allowedHeaders: ['Content-Type'], // Allowed headers
 };
