@@ -3,11 +3,11 @@ const cors = require('cors'); // Import cors
 const router = express.Router();
 const { getPool } = require('../../db'); // Updated path
 
-// Enable CORS for the backend to allow any origin
+// Enable CORS for all origins
 const corsOptions = {
-    origin: '*', // Allow any origin
-    methods: ['GET', 'POST'], // Allowed methods
-    allowedHeaders: ['Content-Type'], // Allowed headers
+  origin: '*', // Allow all origins (you can restrict this to specific domains in production)
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 // Apply CORS middleware globally
@@ -30,20 +30,21 @@ router.post('/create', async (req, res) => {
 
 // Rota para listar todas as requisições de uma unidade de saúde
 router.get('/list/:servicoID', async (req, res) => {
-    const { servicoID } = req.params;
-    try {
-        const pool = getPool();
-        const result = await pool.query(
-            `SELECT req.*, pro.nomeProprio, pro.ultimoNome 
-             FROM servicosBD.Requisicao req
-             JOIN servicosBD.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
-             WHERE pro.servicoID = $1`,
-            [servicoID]
-        );
-        res.json(result.rows);
-    } catch (error) {
-        res.status(400).send(error.message);
-    }
+  const { servicoID } = req.params;
+  try {
+    const pool = getPool();
+    const result = await pool.query(
+      `SELECT req.*, pro.nomeProprio, pro.ultimoNome 
+       FROM servicosBD.Requisicao req
+       JOIN servicosBD.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+       WHERE pro.servicoID = $1`,
+      [servicoID]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(400).send(error.message);
+  }
 });
 
 module.exports = router; 
