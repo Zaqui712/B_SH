@@ -1,6 +1,10 @@
 const express = require('express');
+const cors = require('cors');  // Import CORS middleware
 const router = express.Router();
 const { getPool } = require('../../db'); // Updated path
+
+// Enable CORS for this router (or specific routes)
+router.use(cors());  // This will allow CORS for all the routes in this router
 
 // Rota para criar uma nova requisição
 router.post('/create', async (req, res) => {
@@ -35,4 +39,4 @@ router.get('/list/:servicoID', async (req, res) => {
     }
 });
 
-module.exports = router;
+module.exports = router; 
