@@ -1,6 +1,18 @@
 const express = require('express');
+const cors = require('cors'); // Import cors
 const router = express.Router();
 const { getPool } = require('../../db'); // Updated path
+
+// Enable CORS for all origins
+const corsOptions = {
+  origin: '*', // Allow all origins (you can restrict this to specific domains in production)
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+// Apply CORS middleware globally
+router.use(cors(corsOptions));
+
 
 // Rota para criar uma encomenda manual
 router.post('/create', async (req, res) => {
