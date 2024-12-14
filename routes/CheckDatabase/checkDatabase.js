@@ -1,6 +1,17 @@
 const express = require('express');
+const cors = require('cors'); // Import cors
 const router = express.Router();
 const { getPool } = require('../../db'); // Updated path
+
+// Enable CORS for the backend
+const corsOptions = {
+    origin: 'http://localhost:3000', // Allow the frontend domain
+    methods: ['GET', 'POST'], // Allowed methods
+    allowedHeaders: ['Content-Type'], // Allowed headers
+};
+
+// Apply CORS middleware globally
+router.use(cors(corsOptions));
 
 // Function to check database values
 const checkDatabase = async (req, res) => {
@@ -18,7 +29,7 @@ const checkDatabase = async (req, res) => {
         if (result.rows.length > 0) {
             console.log('Medicamentos abaixo da quantidade mínima:');
             result.rows.forEach(row => {
-                console.log(`- Nome: ${row.nomemedicamento}, Descrição: ${row.descricao}, Quantidade Disponível: ${row.quantidadedisponivel}, Quantidade Mínima: ${row.quantidademinima}`);
+                console.log(`- Nome: ${row.nomeMedicamento}, Descrição: ${row.descricao}, Quantidade Disponível: ${row.quantidadedisponivel}, Quantidade Mínima: ${row.quantidademinima}`);
             });
             res.status(200).json(result.rows);
         } else {
