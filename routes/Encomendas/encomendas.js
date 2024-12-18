@@ -13,7 +13,6 @@ const corsOptions = {
 // Apply CORS middleware globally
 router.use(cors(corsOptions));
 
-
 // Rota para criar uma encomenda manual
 router.post('/create', async (req, res) => {
     const { estadoID, adminID, fornecedorID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada, medicamentos } = req.body;
@@ -61,6 +60,65 @@ router.get('/pendentes-aprovacao', async (req, res) => {
     } catch (error) {
         res.status(400).send(error.message);
     }
+});
+
+// Rota para aprovar uma encomenda
+router.put('/aprovar/:encomendaID', async (req, res) => {
+  const { encomendaID } = req.params;
+
+  try {
+    const pool = getPool();
+    const query = `
+      UPDATE servicosBD.Encomenda
+      SET aprovadoPorAdministrador = true
+      WHERE encomendaID = $1
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [encomendaID]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Encomenda não encontrada ou já aprovada.' });
+    }
+
+    res.status(200).json({ message: 'Encomenda aprovada com sucesso.', encomenda: result.rows[0] });
+  } catch (error) {
+    console.error('Erro ao aprovar encomenda:', error.message);
+    res.status(500).send('Erro ao aprovar encomenda');
+  }
+});
+
+// Rota para excluir uma encomenda
+router.delete('/encomendas/:encomendaID', async (req, res) => {
+  const { encomendaID } = req.params;
+
+  try {
+    const pool = getPool();
+
+    // First, delete any associated Medicamento_Encomenda entries
+    const deleteMedicamentosQuery = `
+      DELETE FROM servicosBD.Medicamento_Encomenda
+      WHERE encomendaID = $1
+    `;
+    await pool.query(deleteMedicamentosQuery, [encomendaID]);
+
+    // Then, delete the Encomenda itself
+    const deleteEncomendaQuery = `
+      DELETE FROM servicosBD.Encomenda
+      WHERE encomendaID = $1
+      RETURNING *
+    `;
+    const result = await pool.query(deleteEncomendaQuery, [encomendaID]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Encomenda não encontrada.' });
+    }
+
+    res.status(200).json({ message: 'Encomenda excluída com sucesso.', encomenda: result.rows[0] });
+  } catch (error) {
+    console.error('Erro ao excluir encomenda:', error.message);
+    res.status(500).send('Erro ao excluir encomenda');
+  }
 });
 
 // Rota para listar todas as encomendas
