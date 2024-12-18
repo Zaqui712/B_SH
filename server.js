@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const { getPool } = require('./db');
+
 const requisicoesRoutes = require('./routes/Requisicoes/requisicao');
 const encomendasRoutes = require('./routes/Encomendas/encomendas');
 const gerarEncomendasRoutes = require('./routes/Encomendas/gerarEncomendas');
@@ -17,6 +18,7 @@ app.listen(PORT, () => {
 });
 
 // Include the routes
+
 app.use('/api/requisicoes', requisicoesRoutes);
 app.use('/api/encomendas', encomendasRoutes);
 app.use('/api/gerarEncomendas', gerarEncomendasRoutes);

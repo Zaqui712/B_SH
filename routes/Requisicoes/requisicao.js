@@ -14,7 +14,7 @@ const corsOptions = {
 router.use(cors(corsOptions));
 
 // Rota para listar todas as requisições (GET /api/requisicao/)
-router.get('/', async (req, res) => {
+router.get('/requisicoes/', async (req, res) => {
   try {
     const pool = getPool();
     const query = `SELECT * FROM servicosBD.Requisicao`;  // Fetch all requisicoes
@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
 });
 
 // Rota para criar uma nova requisição (POST /api/requisicao/create)
-router.post('/create', async (req, res) => {
+router.post('/requisicoes/create', async (req, res) => {
   const { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega } = req.body;
   try {
     const pool = getPool();
@@ -47,7 +47,7 @@ router.post('/create', async (req, res) => {
 });
 
 // Rota para verificar requisições por aprovar por administrador (GET /api/requisicao/pendentes-aprovacao)
-router.get('/pendentes-aprovacao', async (req, res) => {
+router.get('/requisicoes/pendentes-aprovacao', async (req, res) => {
   try {
     const pool = getPool();
     const query = `

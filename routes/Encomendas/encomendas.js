@@ -138,4 +138,6 @@ router.get('/todas', async (req, res) => {
     }
 });
 
+
+
 module.exports = router;
