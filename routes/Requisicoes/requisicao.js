@@ -13,7 +13,25 @@ const corsOptions = {
 // Apply CORS middleware globally
 router.use(cors(corsOptions));
 
-// Rota para criar uma nova requisição
+// Rota para listar todas as requisições (GET /api/requisicao/)
+router.get('/', async (req, res) => {
+  try {
+    const pool = getPool();
+    const query = `SELECT * FROM servicosBD.Requisicao`;  // Fetch all requisicoes
+    const result = await pool.query(query);
+
+    if (result.rows.length > 0) {
+      res.status(200).json(result.rows);
+    } else {
+      res.status(200).json({ message: 'Nenhuma requisição encontrada.' });
+    }
+  } catch (error) {
+    console.error('Erro ao listar requisições:', error.message);
+    res.status(500).send('Erro ao listar requisições');
+  }
+});
+
+// Rota para criar uma nova requisição (POST /api/requisicao/create)
 router.post('/create', async (req, res) => {
   const { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega } = req.body;
   try {
@@ -28,7 +46,7 @@ router.post('/create', async (req, res) => {
   }
 });
 
-// Rota para verificar requisições por aprovar por administrador
+// Rota para verificar requisições por aprovar por administrador (GET /api/requisicao/pendentes-aprovacao)
 router.get('/pendentes-aprovacao', async (req, res) => {
   try {
     const pool = getPool();
@@ -56,7 +74,7 @@ router.get('/pendentes-aprovacao', async (req, res) => {
   }
 });
 
-// Rota para listar todas as requisições de uma unidade de saúde
+// Rota para listar todas as requisições de uma unidade de saúde (GET /api/requisicao/list/:servicoID)
 router.get('/list/:servicoID', async (req, res) => {
   const { servicoID } = req.params;
   try {
@@ -75,7 +93,7 @@ router.get('/list/:servicoID', async (req, res) => {
   }
 });
 
-// Rota para aprovar uma requisição
+// Rota para aprovar uma requisição (PUT /api/requisicao/aprovar/:requisicaoID)
 router.put('/aprovar/:requisicaoID', async (req, res) => {
   const { requisicaoID } = req.params;
 
@@ -101,7 +119,7 @@ router.put('/aprovar/:requisicaoID', async (req, res) => {
   }
 });
 
-// Rota para excluir uma requisição
+// Rota para excluir uma requisição (DELETE /api/requisicao/requisicoes/:requisicaoID)
 router.delete('/requisicoes/:requisicaoID', async (req, res) => {
   const { requisicaoID } = req.params;
 
