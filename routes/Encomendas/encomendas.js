@@ -13,6 +13,7 @@ const corsOptions = {
 // Apply CORS middleware globally
 router.use(cors(corsOptions));
 
+//Precisa de patch -- undefined no campo aprovado e completo. verificar e validar
 // Rota para criar uma encomenda manual
 router.post('/create', async (req, res) => {
     const { estadoID, adminID, fornecedorID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada, medicamentos } = req.body;
@@ -121,7 +122,8 @@ router.delete('/encomendas/:encomendaID', async (req, res) => {
   }
 });
 
-// Rota para listar todas as encomendas
+// Rota para listar todas as encomendas 
+//Reparar estado
 router.get('/todas', async (req, res) => {
     try {
         const pool = getPool();
