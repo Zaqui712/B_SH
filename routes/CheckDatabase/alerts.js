@@ -5,7 +5,7 @@ const { getPool } = require('../../db'); // Updated path
 
 // Enable CORS for all origins
 const corsOptions = {
-  origin: '*', // Allow all origins (you can restrict this to specific domains in production)
+  origin: '*',
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
@@ -85,7 +85,7 @@ const Alerts = async (req, res) => {
     }
 };
 
-// Rota para verificar alertas (GET /api/alertas)
-router.get('/alertas', Alerts);
+// Note the path used here: '/'
+router.get('/', Alerts);
 
 module.exports = router;

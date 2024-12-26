@@ -9,7 +9,7 @@ const aprovacoesRoutes = require('./routes/Aprovacoes/aprovacoes');
 const balancearStockRoutes = require('./routes/BalancearStock/balancearStock');
 const checkDatabaseRoutes = require('./routes/CheckDatabase/checkDatabase');
 
-const alertsRoutes = require('./routes/CheckDatabase/alerts'); // updated variable name
+const alertsRoutes = require('./routes/CheckDatabase/alerts'); // Updated variable name
 
 const authRoutes = require('./routes/Auth/auth');
 const PORT = process.env.PORT || 5000;
@@ -21,12 +21,11 @@ app.listen(PORT, () => {
 });
 
 // Include the routes
-
 app.use('/api/requisicoes', requisicoesRoutes);
 app.use('/api/encomendas', encomendasRoutes);
 app.use('/api/gerarEncomendas', gerarEncomendasRoutes);
 app.use('/api/aprovacoes', aprovacoesRoutes);
 app.use('/api/balancearStock', balancearStockRoutes);
 app.use('/api/checkDatabase', checkDatabaseRoutes);
-app.use('/api/alerts', alertsRoutes); // updated variable name
+app.use('/api/alerts', alertsRoutes); // Updated variable name
 app.use('/api/auth', authRoutes);
