@@ -18,6 +18,9 @@ router.get('/servicessearch', async (req, res) => {
     const pool = getPool();
     const { servicoID, tipoID, localidadeServico } = req.query;
 
+    // Set the search path to the servicosBD schema
+    await pool.query('SET search_path TO servicosBD');
+
     let query = `
         SELECT sh.servicoID, sh.localidadeServico, sh.tipoID, ts.descricao, ts.servicoDisponivel24horas
         FROM Servico_Hospitalar sh
