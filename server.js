@@ -8,14 +8,9 @@ const gerarEncomendasRoutes = require('./routes/Encomendas/gerarEncomendas');
 const aprovacoesRoutes = require('./routes/Aprovacoes/aprovacoes');
 const balancearStockRoutes = require('./routes/BalancearStock/balancearStock');
 const checkDatabaseRoutes = require('./routes/CheckDatabase/checkDatabase');
-<<<<<<< Updated upstream
-
 const alertsRoutes = require('./routes/CheckDatabase/alerts'); // Updated variable name
-=======
-const alertsRoutes = require('./routes/CheckDatabase/alerts');
-const servicesRoutes = require('./routes/Servicos/services'); // New route
->>>>>>> Stashed changes
 
+const servicesRoutes = require('./routes/Servicos/services'); // New route
 const authRoutes = require('./routes/Auth/auth');
 const PORT = process.env.PORT || 5000;
 
@@ -32,10 +27,9 @@ app.use('/api/gerarEncomendas', gerarEncomendasRoutes);
 app.use('/api/aprovacoes', aprovacoesRoutes);
 app.use('/api/balancearStock', balancearStockRoutes);
 app.use('/api/checkDatabase', checkDatabaseRoutes);
-<<<<<<< Updated upstream
+
 app.use('/api/alerts', alertsRoutes); // Updated variable name
-=======
+
 app.use('/api/alerts', alertsRoutes);
 app.use('/api/services', servicesRoutes); // New route
->>>>>>> Stashed changes
 app.use('/api/auth', authRoutes);
