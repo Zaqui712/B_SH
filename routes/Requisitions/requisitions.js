@@ -48,7 +48,7 @@ router.post('/requests/create', async (req, res) => {
 
 // READ
 // Route to list all requests (GET /api/request/)
-router.get('/requests/', async (req, res) => {
+router.get('/requests/all', async (req, res) => {
   try {
     const pool = getPool();
     const query = `SELECT * FROM servicosBD.Requisicao`; // Fetch all requests
