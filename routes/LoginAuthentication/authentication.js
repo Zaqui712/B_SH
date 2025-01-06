@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 
 // Configure CORS
 const corsOptions = {
-  origin: 'http://localhost:3000', // Frontend URL
+  origin: '*',
   methods: ['POST'], // Allowed methods
   allowedHeaders: ['Content-Type'], // Allowed headers
 };
