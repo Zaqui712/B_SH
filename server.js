@@ -2,41 +2,45 @@ const express = require('express');
 const app = express();
 const { getPool } = require('./db');
 
-const requisitionsRoutes = require('./routes/Requisitions/requisitions');
-const automaticRequisitionsRoutes = require('./routes/Requisitions/automaticRequisitions');
-const ordersRoutes = require('./routes/Orders/orders');
-const automaticOrdersRoutes = require('./routes/Orders/automaticOrders');
-const approvalRoutes = require('./routes/Approvals/approvals');
-const stockBalancerRoutes = require('./routes/StockManagement/stockBalancer');
-const checkDatabaseRoutes = require('./routes/CheckDatabase/checkDatabase');
-const alertsRoutes = require('./routes/CheckDatabase/alerts');
-const servicesRoutes = require('./routes/Services/services');
-const authRoutes = require('./routes/LoginAuthentication/authentication');
-const notificationsRoutes = require('./routes/Notifications/notifications');
-const productsRoutes = require('./routes/Products/products');
-const stockRoutes = require('./routes/StockManagement/stock');
-
-const PORT = process.env.PORT || 5000;
-
 // Middleware
 app.use(express.json());
 
-// Include the routes with corrected paths
+// Requisitions
+const requisitionsRoutes = require('./routes/Requisitions/requisitions');
+const automaticRequisitionsRoutes = require('./routes/Requisitions/automaticRequisitions');
 app.use('/api/requests', requisitionsRoutes);
 app.use('/api/automatic-requests', automaticRequisitionsRoutes);
+
+// Orders
+const ordersRoutes = require('./routes/Orders/orders');
+const automaticOrdersRoutes = require('./routes/Orders/automaticOrders');
 app.use('/api/orders', ordersRoutes);
 app.use('/api/automatic-orders', automaticOrdersRoutes);
-app.use('/api/approvals', approvalRoutes);
-app.use('/api/stock-balancer', stockBalancerRoutes);
-app.use('/api/check-database', checkDatabaseRoutes);
-app.use('/api/alerts', alertsRoutes);
-app.use('/api/services', servicesRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/notifications', notificationsRoutes);
-app.use('/api/products', productsRoutes);
+
+// Stock Management
+const stockRoutes = require('./routes/StockManagement/stock');
+const stockBalancerRoutes = require('./routes/StockManagement/stockBalancer');
 app.use('/api/stock', stockRoutes);
+app.use('/api/stock-balancer', stockBalancerRoutes);
+
+// Services
+const servicesRoutes = require('./routes/Services/services');
+app.use('/api/services', servicesRoutes);
+
+// Authentication
+const authRoutes = require('./routes/LoginAuthentication/authentication');
+app.use('/api/auth', authRoutes);
+
+// Notifications
+const notificationsRoutes = require('./routes/Notifications/notifications');
+app.use('/api/notifications', notificationsRoutes);
+
+// Products
+const productsRoutes = require('./routes/Products/products');
+app.use('/api/products', productsRoutes);
 
 // Start the server
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
