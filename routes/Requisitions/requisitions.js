@@ -32,7 +32,7 @@ const verifyAdmin = async (req, res, next) => {
 
 // CREATE
 // Route to create a new request (POST /api/request/create)
-router.post('/requests/create', async (req, res) => {
+router.post('/create', async (req, res) => {
   const { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega } = req.body;
   try {
     const pool = getPool();
@@ -48,7 +48,7 @@ router.post('/requests/create', async (req, res) => {
 
 // READ
 // Route to list all requests (GET /api/request/)
-router.get('/requests/all', async (req, res) => {
+router.get('/all', async (req, res) => {
   try {
     const pool = getPool();
     const query = `SELECT * FROM servicosBD.Requisicao`; // Fetch all requests
@@ -141,7 +141,7 @@ router.put('/approve/:requestID', verifyAdmin, async (req, res) => {
 
 // DELETE
 // Route to delete a request (DELETE /api/request/requests/:requestID)
-router.delete('/requests/:requestID', async (req, res) => {
+router.delete('/:requestID', async (req, res) => {
   const { requestID } = req.params;
 
   try {
