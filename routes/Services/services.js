@@ -27,6 +27,8 @@ router.get('/servicessearch', async (req, res) => {
     // Prepare the parameters object
     const params = {};
 
+    console.log('Received query parameters:', req.query); // Log received query parameters
+
     // Add conditions to query if the parameters are provided
     if (servicoID) {
         query += ` AND sh.servicoID = @servicoID`;
@@ -40,23 +42,29 @@ router.get('/servicessearch', async (req, res) => {
 
     // Ensure no parameters are sent as undefined or null
     if (Object.keys(params).length === 0) {
+        console.log('No valid search parameters provided'); // Log if no parameters are valid
         return res.status(400).json({ error: 'No valid search parameters provided.' });
     }
+
+    console.log('Executing query:', query); // Log the final query being executed
+    console.log('With parameters:', params); // Log the parameters
 
     try {
         // Execute the query with parameters
         const results = await executeQuery(query, params);
+        console.log('Query results:', results); // Log the query results
         res.status(200).json(results.recordset);
     } catch (error) {
-        console.error('Error searching services:', error.message);
+        console.error('Error searching services:', error.message); // Log the error message
         res.status(500).json({ error: error.message });
     }
 });
 
-
 // Route to create a new Servico_Hospitalar
 router.post('/servico-completo', async (req, res) => {
     const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
+
+    console.log('Received body:', req.body); // Log the received body
 
     try {
         const servicoQuery = `
@@ -66,11 +74,16 @@ router.post('/servico-completo', async (req, res) => {
 		`;
 
         const servicoValues = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas };
+
+        console.log('Executing query:', servicoQuery); // Log the insert query
+        console.log('With values:', servicoValues); // Log the insert values
+
         const servicoResult = await executeQuery(servicoQuery, servicoValues);
+        console.log('Insert result:', servicoResult); // Log the result of the insert query
 
         res.status(201).json(servicoResult.recordset[0]);
     } catch (error) {
-        console.error('Error creating Servico_Hospitalar:', error.message);
+        console.error('Error creating Servico_Hospitalar:', error.message); // Log error message
         res.status(500).json({ error: error.message });
     }
 });
@@ -79,6 +92,9 @@ router.post('/servico-completo', async (req, res) => {
 router.put('/servico/:id', async (req, res) => {
     const { id } = req.params;
     const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
+
+    console.log('Received ID:', id); // Log the received ID
+    console.log('Received body:', req.body); // Log the received body
 
     try {
         const query = `
@@ -89,14 +105,20 @@ router.put('/servico/:id', async (req, res) => {
 		`;
 
         const values = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas, id };
+
+        console.log('Executing query:', query); // Log the update query
+        console.log('With values:', values); // Log the update values
+
         const result = await executeQuery(query, values);
+        console.log('Update result:', result); // Log the result of the update query
 
         if (result.recordset.length === 0) {
+            console.log('Servico_Hospitalar not found'); // Log if no records are found
             return res.status(404).json({ error: 'Servico_Hospitalar not found' });
         }
         res.status(200).json(result.recordset[0]);
     } catch (error) {
-        console.error('Error updating Servico_Hospitalar:', error.message);
+        console.error('Error updating Servico_Hospitalar:', error.message); // Log error message
         res.status(500).json({ error: error.message });
     }
 });
@@ -105,6 +127,8 @@ router.put('/servico/:id', async (req, res) => {
 router.delete('/servico/:id', async (req, res) => {
     const { id } = req.params;
 
+    console.log('Received ID:', id); // Log the received ID
+
     try {
         const query = `
 		DELETE FROM SERVICOSDB.dbo.Servico_Hospitalar
@@ -112,14 +136,19 @@ router.delete('/servico/:id', async (req, res) => {
 		OUTPUT DELETED.servicoID, DELETED.localidadeServico, DELETED.nomeServico, DELETED.descServico, DELETED.servicoDisponivel24horas;
 		`;
 
+        console.log('Executing query:', query); // Log the delete query
+        console.log('With ID:', id); // Log the ID used in the delete query
+
         const result = await executeQuery(query, { id });
+        console.log('Delete result:', result); // Log the result of the delete query
 
         if (result.recordset.length === 0) {
+            console.log('Servico_Hospitalar not found'); // Log if no records are found
             return res.status(404).json({ error: 'Servico_Hospitalar not found' });
         }
         res.status(200).json({ message: 'Servico_Hospitalar deleted successfully' });
     } catch (error) {
-        console.error('Error deleting Servico_Hospitalar:', error.message);
+        console.error('Error deleting Servico_Hospitalar:', error.message); // Log error message
         res.status(500).json({ error: error.message });
     }
 });
