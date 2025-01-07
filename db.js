@@ -23,4 +23,22 @@ const getPool = async () => {
     }
 };
 
-module.exports = { getPool };
+const executeQuery = async (query, params = []) => {
+    try {
+        const pool = await getPool();
+        const request = pool.request();
+        
+        // Bind parameters if provided
+        params.forEach((param, index) => {
+            request.input(`param${index + 1}`, param);
+        });
+
+        const result = await request.query(query);
+        return result;
+    } catch (error) {
+        console.error('Error executing query: ', error);
+        throw new Error('Query execution failed');
+    }
+};
+
+module.exports = { getPool, executeQuery };
