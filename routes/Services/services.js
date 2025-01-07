@@ -19,7 +19,7 @@ router.get('/servicessearch', async (req, res) => {
 
     let query = `
         SELECT sh.servicoID, sh.localidadeServico, sh.nomeServico, sh.descServico, sh.servicoDisponivel24horas
-        FROM Servico_Hospitalar sh
+        FROM SERVICOSDB.Servico_Hospitalar sh
         WHERE 1=1
     `;
 
@@ -49,8 +49,8 @@ router.post('/servico-completo', async (req, res) => {
 
     try {
         const servicoQuery = `
-            INSERT INTO Servico_Hospitalar (localidadeServico, nomeServico, descServico, servicoDisponivel24horas)
-            VALUES (@localidadeServico, @nomeServico, @descServico, @servicoDisponivel24horas) RETURNING *;
+            INSERT INTO SERVICOSDB.Servico_Hospitalar (localidadeServico, nomeServico, descServico, servicoDisponivel24horas)
+            VALUES (@localidadeServico, @nomeServico, @descServico, @servicoDisponivel24horas) OUTPUT INSERTED.*;
         `;
         const servicoValues = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas };
         const servicoResult = await executeQuery(servicoQuery, servicoValues);
@@ -69,9 +69,9 @@ router.put('/servico/:id', async (req, res) => {
 
     try {
         const query = `
-            UPDATE Servico_Hospitalar
+            UPDATE SERVICOSDB.Servico_Hospitalar
             SET localidadeServico = @localidadeServico, nomeServico = @nomeServico, descServico = @descServico, servicoDisponivel24horas = @servicoDisponivel24horas
-            WHERE servicoID = @id RETURNING *;
+            WHERE servicoID = @id OUTPUT INSERTED.*;
         `;
         const values = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas, id };
         const result = await executeQuery(query, values);
@@ -91,8 +91,8 @@ router.delete('/servico/:id', async (req, res) => {
 
     try {
         const query = `
-            DELETE FROM Servico_Hospitalar
-            WHERE servicoID = @id RETURNING *;
+            DELETE FROM SERVICOSDB.Servico_Hospitalar
+            WHERE servicoID = @id OUTPUT DELETED.*;
         `;
         const result = await executeQuery(query, { id });
         if (result.recordset.length === 0) {
