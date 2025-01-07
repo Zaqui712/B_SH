@@ -18,24 +18,24 @@ router.get('/servicessearch', async (req, res) => {
     const { servicoID, localidadeServico } = req.query;
 
     // Base query to fetch services
-    let query = `
+    let query = 
     SELECT sh.servicoID, sh.localidadeServico, sh.nomeServico, sh.descServico, sh.servicoDisponivel24horas
     FROM SERVICOSDB.dbo.Servico_Hospitalar sh
     WHERE 1=1
-	`;
+	;
 
     // Prepare the parameters object
     const params = {};
 
     // Add conditions to query if the parameters are provided
     if (servicoID) {
-        query += ` AND sh.servicoID = @servicoID`;
+        query +=  AND sh.servicoID = @servicoID;
         params.servicoID = servicoID;
     }
 
     if (localidadeServico) {
-        query += ` AND sh.localidadeServico LIKE @localidadeServico`;
-        params.localidadeServico = `%${localidadeServico}%`;  // Add wildcard for LIKE query
+        query +=  AND sh.localidadeServico LIKE @localidadeServico;
+        params.localidadeServico = %${localidadeServico}%;  // Add wildcard for LIKE query
     }
 
     // Ensure no parameters are sent as undefined or null
@@ -59,11 +59,11 @@ router.post('/servico-completo', async (req, res) => {
     const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
 
     try {
-        const servicoQuery = `
+        const servicoQuery = 
 		INSERT INTO SERVICOSDB.dbo.Servico_Hospitalar (localidadeServico, nomeServico, descServico, servicoDisponivel24horas)
 		VALUES (@localidadeServico, @nomeServico, @descServico, @servicoDisponivel24horas)
         OUTPUT INSERTED.servicoID, INSERTED.localidadeServico, INSERTED.nomeServico, INSERTED.descServico, INSERTED.servicoDisponivel24horas;
-		`;
+		;
 
         const servicoValues = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas };
         const servicoResult = await executeQuery(servicoQuery, servicoValues);
@@ -81,12 +81,12 @@ router.put('/servico/:id', async (req, res) => {
     const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
 
     try {
-        const query = `
+        const query = 
 		UPDATE SERVICOSDB.dbo.Servico_Hospitalar
 		SET localidadeServico = @localidadeServico, nomeServico = @nomeServico, descServico = @descServico, servicoDisponivel24horas = @servicoDisponivel24horas
 		WHERE servicoID = @id
 		OUTPUT INSERTED.servicoID, INSERTED.localidadeServico, INSERTED.nomeServico, INSERTED.descServico, INSERTED.servicoDisponivel24horas;
-		`;
+		;
 
         const values = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas, id };
         const result = await executeQuery(query, values);
@@ -106,11 +106,11 @@ router.delete('/servico/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
-        const query = `
+        const query = 
 		DELETE FROM SERVICOSDB.dbo.Servico_Hospitalar
 		WHERE servicoID = @id
 		OUTPUT DELETED.servicoID, DELETED.localidadeServico, DELETED.nomeServico, DELETED.descServico, DELETED.servicoDisponivel24horas;
-		`;
+		;
 
         const result = await executeQuery(query, { id });
 
