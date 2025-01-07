@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require('express'); 
 const cors = require('cors'); // Import cors
 const router = express.Router();
 const { getPool } = require('../../db'); // Updated path
@@ -21,25 +21,25 @@ const Alerts = async (req, res) => {
   const checkMedicationsQuery = `
     SELECT msh.medicamentoid, msh.servicoid, msh.quantidadedisponivel, msh.quantidademinima,
            m.nomeMedicamento, tm.descricao
-    FROM SERVICOSDB.Medicamento_Servico_Hospitalar msh
-    JOIN SERVICOSDB.Medicamento m ON msh.medicamentoid = m.medicamentoid
-    JOIN SERVICOSDB.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
+    FROM SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh
+    JOIN SERVICOSDB.dbo.Medicamento m ON msh.medicamentoid = m.medicamentoid
+    JOIN SERVICOSDB.dbo.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
     WHERE msh.quantidadedisponivel < msh.quantidademinima;
   `;
 
   // Query for listing pending orders
   const pendingOrdersQuery = `
     SELECT e.*, a.nomeProprio, a.ultimoNome
-    FROM SERVICOSDB.Encomenda e
-    JOIN SERVICOSDB.Administrador a ON e.adminID = a.adminID
+    FROM SERVICOSDB.dbo.Encomenda e
+    JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
     WHERE e.aprovadoPorAdministrador = 0;
   `;
 
   // Query for listing pending requests for approval
   const pendingRequestsQuery = `
     SELECT req.*, pro.nomeProprio, pro.ultimoNome 
-    FROM SERVICOSDB.Requisicao req
-    JOIN SERVICOSDB.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+    FROM SERVICOSDB.dbo.Requisicao req
+    JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
     WHERE req.aprovadoPorAdministrador = 0;
   `;
 

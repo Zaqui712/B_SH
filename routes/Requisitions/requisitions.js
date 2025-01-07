@@ -18,7 +18,7 @@ const verifyAdmin = async (req, res, next) => {
   const { adminID } = req.body;
   try {
     const pool = await getPool();
-    const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.Credenciais WHERE credenciaisID = @adminID';
+    const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.dbo.Credenciais WHERE credenciaisID = @adminID';
     const result = await pool.request().input('adminID', adminID).query(query);
     if (result.recordset.length > 0 && result.recordset[0].utilizadorAdministrador) {
       next();
@@ -37,7 +37,7 @@ router.post('/create', async (req, res) => {
   try {
     const pool = await getPool();
     const query = `
-      INSERT INTO SERVICOSDB.Requisicao (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
+      INSERT INTO SERVICOSDB.dbo.Requisicao (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
       VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega)
       OUTPUT INSERTED.*
     `;
@@ -61,7 +61,7 @@ router.post('/create', async (req, res) => {
 router.get('/all', async (req, res) => {
   try {
     const pool = await getPool();
-    const query = `SELECT * FROM SERVICOSDB.Requisicao`; // Fetch all requests
+    const query = `SELECT * FROM SERVICOSDB.dbo.Requisicao`; // Fetch all requests
     const result = await pool.request().query(query);
 
     if (result.recordset.length > 0) {
@@ -81,8 +81,8 @@ router.get('/pending-approval', async (req, res) => {
     const pool = await getPool();
     const query = `
       SELECT req.*, pro.nomeProprio, pro.ultimoNome 
-      FROM SERVICOSDB.Requisicao req
-      JOIN SERVICOSDB.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+      FROM SERVICOSDB.dbo.Requisicao req
+      JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
       WHERE req.aprovadoPorAdministrador = 0
     `;
     const result = await pool.request().query(query);
@@ -110,8 +110,8 @@ router.get('/list/:servicoID', async (req, res) => {
     const pool = await getPool();
     const query = `
       SELECT req.*, pro.nomeProprio, pro.ultimoNome 
-      FROM SERVICOSDB.Requisicao req
-      JOIN SERVICOSDB.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+      FROM SERVICOSDB.dbo.Requisicao req
+      JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
       WHERE pro.servicoID = @servicoID
     `;
     const result = await pool.request().input('servicoID', servicoID).query(query);
@@ -130,7 +130,7 @@ router.put('/approve/:requestID', verifyAdmin, async (req, res) => {
   try {
     const pool = await getPool();
     const query = `
-      UPDATE SERVICOSDB.Requisicao
+      UPDATE SERVICOSDB.dbo.Requisicao
       SET aprovadoPorAdministrador = 1
       WHERE requisicaoID = @requestID
       OUTPUT INSERTED.*
@@ -159,7 +159,7 @@ router.delete('/:requestID', async (req, res) => {
 
     // Delete the request
     const deleteRequestQuery = `
-      DELETE FROM SERVICOSDB.Requisicao
+      DELETE FROM SERVICOSDB.dbo.Requisicao
       WHERE requisicaoID = @requestID
       OUTPUT DELETED.*
     `;
@@ -182,7 +182,7 @@ router.post('/approve-order', verifyAdmin, async (req, res) => {
   try {
     const pool = await getPool();
     const query = `
-      UPDATE SERVICOSDB.Encomenda
+      UPDATE SERVICOSDB.dbo.Encomenda
       SET aprovadoPorAdministrador = 1
       WHERE encomendaID = @encomendaID
     `;

@@ -22,7 +22,7 @@ router.post('/login', async (req, res) => {
     // Fetch user credentials
     const credentialsResult = await pool.request()
       .input('email', email)
-      .query('SELECT * FROM SERVICOSDB.Credenciais WHERE email = @email');
+      .query('SELECT * FROM SERVICOSDB.dbo.Credenciais WHERE email = @email');
     const user = credentialsResult.recordset[0];
 
     if (!user || user.password !== password) {
@@ -35,12 +35,12 @@ router.post('/login', async (req, res) => {
       // Admin user
       nameResult = await pool.request()
         .input('credenciaisID', user.credenciaisID)
-        .query('SELECT nomeProprio, ultimoNome FROM SERVICOSDB.Administrador WHERE credenciaisID = @credenciaisID');
+        .query('SELECT nomeProprio, ultimoNome FROM SERVICOSDB.dbo.Administrador WHERE credenciaisID = @credenciaisID');
     } else {
       // Healthcare professional user
       nameResult = await pool.request()
         .input('credenciaisID', user.credenciaisID)
-        .query('SELECT nomeProprio, ultimoNome FROM SERVICOSDB.Profissional_De_Saude WHERE credenciaisID = @credenciaisID');
+        .query('SELECT nomeProprio, ultimoNome FROM SERVICOSDB.dbo.Profissional_De_Saude WHERE credenciaisID = @credenciaisID');
     }
 
     const nameData = nameResult.recordset[0];

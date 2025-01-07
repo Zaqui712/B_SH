@@ -18,7 +18,7 @@ const verifyAdmin = async (req, res, next) => {
   const { adminID } = req.body;
   try {
     const pool = await getPool();
-    const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.Credenciais WHERE credenciaisID = @adminID';
+    const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.dbo.Credenciais WHERE credenciaisID = @adminID';
     const result = await pool.request().input('adminID', adminID).query(query);
     if (result.recordset.length > 0 && result.recordset[0].utilizadorAdministrador) {
       next();
@@ -41,7 +41,7 @@ router.post('/create', async (req, res) => {
 
     const pool = await getPool();
     const createOrderQuery = `
-      INSERT INTO SERVICOSDB.Encomenda (estadoID, adminID, fornecedorID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada)
+      INSERT INTO SERVICOSDB.dbo.Encomenda (estadoID, adminID, fornecedorID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada)
       VALUES (@estadoID, @adminID, @fornecedorID, @aprovadoPorAdministrador, @encomendaCompleta, @dataEncomenda, @dataEntrega, @quantidadeEnviada)
       OUTPUT INSERTED.encomendaID
     `;
@@ -60,7 +60,7 @@ router.post('/create', async (req, res) => {
     // Link medications to the order
     for (const med of medicamentos) {
       const linkMedicationQuery = `
-        INSERT INTO SERVICOSDB.Medicamento_Encomenda (medicamentoID, encomendaID, quantidade)
+        INSERT INTO SERVICOSDB.dbo.Medicamento_Encomenda (medicamentoID, encomendaID, quantidade)
         VALUES (@medicamentoID, @encomendaID, @quantidade)
       `;
       await pool.request()
@@ -83,9 +83,9 @@ router.get('/all', async (req, res) => {
     const pool = await getPool();
     const query = `
       SELECT e.*, a.nomeProprio, a.ultimoNome, f.nomeFornecedor
-      FROM SERVICOSDB.Encomenda e
-      JOIN SERVICOSDB.Administrador a ON e.adminID = a.adminID
-      JOIN SERVICOSDB.Fornecedor f ON e.fornecedorID = f.fornecedorID
+      FROM SERVICOSDB.dbo.Encomenda e
+      JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
+      JOIN SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
     `;
     const result = await pool.request().query(query);
     res.json(result.recordset);
@@ -100,8 +100,8 @@ router.get('/pending-approval', async (req, res) => {
     const pool = await getPool();
     const query = `
       SELECT e.*, a.nomeProprio, a.ultimoNome
-      FROM SERVICOSDB.Encomenda e
-      JOIN SERVICOSDB.Administrador a ON e.adminID = a.adminID
+      FROM SERVICOSDB.dbo.Encomenda e
+      JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
       WHERE e.aprovadoPorAdministrador = 0
     `;
     const result = await pool.request().query(query);
@@ -119,7 +119,7 @@ router.put('/approve/:encomendaID', verifyAdmin, async (req, res) => {
   try {
     const pool = await getPool();
     const query = `
-      UPDATE SERVICOSDB.Encomenda
+      UPDATE SERVICOSDB.dbo.Encomenda
       SET aprovadoPorAdministrador = 1
       WHERE encomendaID = @encomendaID
       OUTPUT INSERTED.*
@@ -144,7 +144,7 @@ router.post('/approve', verifyAdmin, async (req, res) => {
   try {
     const pool = await getPool();
     const query = `
-      UPDATE SERVICOSDB.Encomenda
+      UPDATE SERVICOSDB.dbo.Encomenda
       SET aprovadoPorAdministrador = 1
       WHERE encomendaID = @encomendaID
     `;
@@ -165,14 +165,14 @@ router.delete('/orders/:encomendaID', async (req, res) => {
 
     // First, delete any associated Medicamento_Encomenda entries
     const deleteMedicationsQuery = `
-      DELETE FROM SERVICOSDB.Medicamento_Encomenda
+      DELETE FROM SERVICOSDB.dbo.Medicamento_Encomenda
       WHERE encomendaID = @encomendaID
     `;
     await pool.request().input('encomendaID', encomendaID).query(deleteMedicationsQuery);
 
     // Then, delete the order itself
     const deleteOrderQuery = `
-      DELETE FROM SERVICOSDB.Encomenda
+      DELETE FROM SERVICOSDB.dbo.Encomenda
       WHERE encomendaID = @encomendaID
       OUTPUT DELETED.*
     `;

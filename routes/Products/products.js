@@ -26,7 +26,7 @@ const verifyAdmin = async (req, res, next) => {
   const { adminID } = req.body;
   try {
     const pool = await getPool();
-    const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.Credenciais WHERE credenciaisID = @adminID';
+    const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.dbo.Credenciais WHERE credenciaisID = @adminID';
     const result = await pool.request().input('adminID', adminID).query(query);
     if (result.recordset.length > 0 && result.recordset[0].utilizadorAdministrador) {
       next();
@@ -48,7 +48,7 @@ router.post('/new', verifyAdmin, async (req, res) => {
   }
 
   const query = `
-    INSERT INTO SERVICOSDB.Medicamento (nomeMedicamento, tipoID, descricao)
+    INSERT INTO SERVICOSDB.dbo.Medicamento (nomeMedicamento, tipoID, descricao)
     VALUES (@nomeMedicamento, @tipoID, @descricao)
     OUTPUT INSERTED.*
   `;
@@ -67,9 +67,9 @@ router.post('/new', verifyAdmin, async (req, res) => {
 router.get('/all', async (req, res) => {
   const query = `
     SELECT m.medicamentoid, m.nomeMedicamento, tm.descricao, msh.quantidadedisponivel
-    FROM SERVICOSDB.Medicamento m
-    JOIN SERVICOSDB.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
-    JOIN SERVICOSDB.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
+    FROM SERVICOSDB.dbo.Medicamento m
+    JOIN SERVICOSDB.dbo.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
+    JOIN SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
   `;
   try {
     const results = await executeQuery(query);
@@ -89,9 +89,9 @@ const searchProduct = async (req, res) => {
 
   const sqlQuery = `
     SELECT m.medicamentoid, m.nomeMedicamento, tm.descricao, msh.quantidadedisponivel
-    FROM SERVICOSDB.Medicamento m
-    JOIN SERVICOSDB.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
-    JOIN SERVICOSDB.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
+    FROM SERVICOSDB.dbo.Medicamento m
+    JOIN SERVICOSDB.dbo.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
+    JOIN SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
     WHERE m.nomeMedicamento LIKE @query
   `;
 
@@ -122,7 +122,7 @@ router.put('/update/:medicamentoID', async (req, res) => {
   }
 
   const query = `
-    UPDATE SERVICOSDB.Medicamento
+    UPDATE SERVICOSDB.dbo.Medicamento
     SET nomeMedicamento = @nomeMedicamento, tipoID = @tipoID, descricao = @descricao
     WHERE medicamentoID = @medicamentoID
     OUTPUT INSERTED.*
@@ -147,7 +147,7 @@ router.delete('/delete/:medicamentoID', verifyAdmin, async (req, res) => {
   const { medicamentoID } = req.params;
 
   const query = `
-    DELETE FROM SERVICOSDB.Medicamento
+    DELETE FROM SERVICOSDB.dbo.Medicamento
     WHERE medicamentoID = @medicamentoID
     OUTPUT DELETED.*
   `;

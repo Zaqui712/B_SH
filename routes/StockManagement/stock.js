@@ -15,9 +15,9 @@ router.use(cors({
 router.get('/inventory', async (req, res) => {
   const query = `
     SELECT m.medicamentoid, m.nomeMedicamento, tm.descricao, msh.quantidadedisponivel
-    FROM SERVICOSDB.Medicamento m
-    JOIN SERVICOSDB.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
-    JOIN SERVICOSDB.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
+    FROM SERVICOSDB.dbo.Medicamento m
+    JOIN SERVICOSDB.dbo.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
+    JOIN SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
     WHERE msh.quantidadedisponivel > 0
   `;
   try {
@@ -34,15 +34,15 @@ router.get('/inventory/:medicamentoID/:servicoID', async (req, res) => {
   const { medicamentoID, servicoID } = req.params;
   const query = `
     SELECT m.medicamentoid, m.nomeMedicamento, tm.descricao, msh.quantidadedisponivel
-    FROM SERVICOSDB.Medicamento m
-    JOIN SERVICOSDB.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
-    JOIN SERVICOSDB.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
+    FROM SERVICOSDB.dbo.Medicamento m
+    JOIN SERVICOSDB.dbo.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
+    JOIN SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
     WHERE msh.medicamentoid = @medicamentoID AND msh.servicoid = @servicoID
   `;
   try {
     const results = await executeQuery(query, { medicamentoID, servicoID });
-    if (results.length > 0) {
-      res.status(200).json(results[0]);
+    if (results.recordset.length > 0) {
+      res.status(200).json(results.recordset[0]);
     } else {
       res.status(404).json({ message: 'Medicamento ou serviço não encontrado.' });
     }
@@ -62,15 +62,15 @@ router.put('/add', async (req, res) => {
   }
 
   const query = `
-    UPDATE SERVICOSDB.Medicamento_Servico_Hospitalar
+    UPDATE SERVICOSDB.dbo.Medicamento_Servico_Hospitalar
     SET quantidadedisponivel = quantidadedisponivel + @quantidadeAdicionar
     WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
-    RETURNING *
+    OUTPUT INSERTED.*
   `;
   try {
     const results = await executeQuery(query, { quantidadeAdicionar, medicamentoID, servicoID });
-    if (results.length > 0) {
-      res.status(200).json({ message: 'Estoque atualizado com sucesso.', estoque: results[0] });
+    if (results.recordset.length > 0) {
+      res.status(200).json({ message: 'Estoque atualizado com sucesso.', estoque: results.recordset[0] });
     } else {
       res.status(404).json({ message: 'Medicamento ou serviço não encontrado.' });
     }
@@ -89,15 +89,15 @@ router.put('/remove', async (req, res) => {
   }
 
   const query = `
-    UPDATE SERVICOSDB.Medicamento_Servico_Hospitalar
+    UPDATE SERVICOSDB.dbo.Medicamento_Servico_Hospitalar
     SET quantidadedisponivel = quantidadedisponivel - @quantidadeRemover
     WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID AND quantidadedisponivel >= @quantidadeRemover
-    RETURNING *
+    OUTPUT INSERTED.*
   `;
   try {
     const results = await executeQuery(query, { quantidadeRemover, medicamentoID, servicoID });
-    if (results.length > 0) {
-      res.status(200).json({ message: 'Estoque atualizado com sucesso.', estoque: results[0] });
+    if (results.recordset.length > 0) {
+      res.status(200).json({ message: 'Estoque atualizado com sucesso.', estoque: results.recordset[0] });
     } else {
       res.status(400).json({ message: 'Estoque insuficiente ou medicamento/serviço não encontrado.' });
     }

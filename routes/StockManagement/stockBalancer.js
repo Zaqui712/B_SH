@@ -8,10 +8,10 @@ const balanceStock = async (req, res) => {
     const query = `
       SELECT msh.medicamentoid, msh.servicoid, msh.quantidadedisponivel, msh.quantidademinima,
              m.nomeMedicamento, tm.descricao, sh.localidadeServico
-      FROM SERVICOSDB.Medicamento_Servico_Hospitalar msh
-      JOIN SERVICOSDB.Medicamento m ON msh.medicamentoid = m.medicamentoid
-      JOIN SERVICOSDB.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
-      JOIN SERVICOSDB.Servico_Hospitalar sh ON msh.servicoid = sh.servicoid
+      FROM SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh
+      JOIN SERVICOSDB.dbo.Medicamento m ON msh.medicamentoid = m.medicamentoid
+      JOIN SERVICOSDB.dbo.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
+      JOIN SERVICOSDB.dbo.Servico_Hospitalar sh ON msh.servicoid = sh.servicoid
     `;
     const result = await executeQuery(query);
     const medications = result.recordset;
@@ -25,7 +25,7 @@ const balanceStock = async (req, res) => {
 
         const excessUnitsQuery = `
           SELECT servicoid, quantidadedisponivel
-          FROM SERVICOSDB.Medicamento_Servico_Hospitalar
+          FROM SERVICOSDB.dbo.Medicamento_Servico_Hospitalar
           WHERE medicamentoid = @medicamentoid AND quantidadedisponivel > quantidademinima
           ORDER BY quantidadedisponivel DESC
         `;
@@ -35,10 +35,10 @@ const balanceStock = async (req, res) => {
           let excess = unit.quantidadedisponivel - med.quantidademinima;
           if (excess > 0) {
             const transferQuery = `
-              UPDATE SERVICOSDB.Medicamento_Servico_Hospitalar
+              UPDATE SERVICOSDB.dbo.Medicamento_Servico_Hospitalar
               SET quantidadedisponivel = quantidadedisponivel - @excess
               WHERE medicamentoid = @medicamentoid AND servicoid = @servicoid;
-              UPDATE SERVICOSDB.Medicamento_Servico_Hospitalar
+              UPDATE SERVICOSDB.dbo.Medicamento_Servico_Hospitalar
               SET quantidadedisponivel = quantidadedisponivel + @excess
               WHERE medicamentoid = @medicamentoid AND servicoid = @targetServicoid
             `;
@@ -46,7 +46,7 @@ const balanceStock = async (req, res) => {
 
             const currentQuantityQuery = `
               SELECT quantidadedisponivel
-              FROM SERVICOSDB.Medicamento_Servico_Hospitalar
+              FROM SERVICOSDB.dbo.Medicamento_Servico_Hospitalar
               WHERE medicamentoid = @medicamentoid AND servicoid = @servicoid
             `;
             const currentQuantityResult = await executeQuery(currentQuantityQuery, { medicamentoid: med.medicamentoid, servicoid: med.servicoid });
@@ -58,26 +58,26 @@ const balanceStock = async (req, res) => {
 
         const finalCurrentQuantityQuery = `
           SELECT quantidadedisponivel
-          FROM SERVICOSDB.Medicamento_Servico_Hospitalar
+          FROM SERVICOSDB.dbo.Medicamento_Servico_Hospitalar
           WHERE medicamentoid = @medicamentoid AND servicoid = @servicoid
         `;
         const finalCurrentQuantityResult = await executeQuery(finalCurrentQuantityQuery, { medicamentoid: med.medicamentoid, servicoid: med.servicoid });
         if (finalCurrentQuantityResult[0].quantidadedisponivel < med.quantidademinima) {
           const checkRequestQuery = `
             SELECT COUNT(*) AS count
-            FROM SERVICOSDB.Requisicao
+            FROM SERVICOSDB.dbo.Requisicao
             WHERE profissionalID = 1 AND adminID = 1 AND estadoID = 1 AND requisicaoCompleta = 0
             AND dataRequisicao >= DATEADD(day, -1, GETDATE())
             AND requisicaoID IN (
               SELECT requisicaoID
-              FROM SERVICOSDB.Medicamento_Encomenda
+              FROM SERVICOSDB.dbo.Medicamento_Encomenda
               WHERE medicamentoID = @medicamentoid
             )
           `;
           const checkRequestResult = await executeQuery(checkRequestQuery, { medicamentoid: med.medicamentoid });
           if (checkRequestResult[0].count == 0) {
             const createRequestQuery = `
-              INSERT INTO SERVICOSDB.Requisicao (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
+              INSERT INTO SERVICOSDB.dbo.Requisicao (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
               VALUES (1, 1, 1, 0, 0, GETDATE(), DATEADD(day, 7, GETDATE()))
               RETURNING requisicaoID
             `;
@@ -85,7 +85,7 @@ const balanceStock = async (req, res) => {
             const newRequestID = createRequestResult[0].requisicaoID;
 
             const linkMedicationQuery = `
-              INSERT INTO SERVICOSDB.Medicamento_Encomenda (medicamentoID, requisicaoID, quantidade)
+              INSERT INTO SERVICOSDB.dbo.Medicamento_Encomenda (medicamentoID, requisicaoID, quantidade)
               VALUES (@medicamentoid, @requisicaoID, @quantidade)
             `;
             await executeQuery(linkMedicationQuery, { medicamentoid: med.medicamentoid, requisicaoID: newRequestID, quantidade: med.quantidademinima - finalCurrentQuantityResult[0].quantidadedisponivel });
