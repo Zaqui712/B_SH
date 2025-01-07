@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const router = express.Router();
 const { executeQuery } = require('../../db');
-// Enable CORS for the backend to allow specific origin
+// En able CORS for the backend to allow specific origin
 const corsOptions = {
     origin: '*', // Replace '*' with your domain in production for added security
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
