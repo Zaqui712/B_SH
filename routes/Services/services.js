@@ -14,16 +14,19 @@ const corsOptions = {
 router.use(cors(corsOptions));
 
 // Route to search for all services or by specific criteria
-router.get('/servicessearch', async (req, res) => {
+router.get('/all', async (req, res) => {
     const { servicoID, localidadeServico } = req.query;
+    
     // Base query to fetch services
     let query = `
     SELECT sh.servicoID, sh.localidadeServico, sh.nomeServico, sh.descServico, sh.servicoDisponivel24horas
     FROM SERVICOSDB.dbo.Servico_Hospitalar sh
     WHERE 1=1
 	`;
+
     // Prepare the parameters object
     const params = {};
+
     // Add conditions to query if the parameters are provided
     if (servicoID) {
         query += ` AND sh.servicoID = @servicoID`;
@@ -34,28 +37,28 @@ router.get('/servicessearch', async (req, res) => {
         params.localidadeServico = `%${localidadeServico}%`;  // Add wildcard for LIKE query
     }
 
-    // Ensure that empty parameters (undefined or null) are not passed to the query
-    if (!params.servicoID) {
-        delete params.servicoID;
-    }
-    if (!params.localidadeServico) {
-        delete params.localidadeServico;
-    }
-
-    // Ensure no parameters are sent as undefined or null
+    // If no parameters are provided, proceed with fetching all records
     if (Object.keys(params).length === 0) {
-        return res.status(400).json({ error: 'No valid search parameters provided.' });
-    }
-
-    try {
-        // Execute the query with parameters
-        const results = await executeQuery(query, params);
-        res.status(200).json(results.recordset);
-    } catch (error) {
-        console.error('Error searching services:', error.message);
-        res.status(500).json({ error: error.message });
+        try {
+            // Execute the query for all records
+            const results = await executeQuery(query, params);  // params is empty
+            res.status(200).json(results.recordset);
+        } catch (error) {
+            console.error('Error fetching all services:', error.message);
+            res.status(500).json({ error: error.message });
+        }
+    } else {
+        // Execute the query with the provided parameters
+        try {
+            const results = await executeQuery(query, params);
+            res.status(200).json(results.recordset);
+        } catch (error) {
+            console.error('Error searching services:', error.message);
+            res.status(500).json({ error: error.message });
+        }
     }
 });
+
 
 // Route to create a new Servico_Hospitalar
 router.post('/servico-completo', async (req, res) => {
