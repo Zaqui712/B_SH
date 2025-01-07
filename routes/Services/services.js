@@ -2,14 +2,17 @@ const express = require('express');
 const cors = require('cors');
 const router = express.Router();
 const { executeQuery } = require('../../db');
-// En able CORS for the backend to allow specific origin
+
+// Enable CORS for the backend to allow specific origin
 const corsOptions = {
     origin: '*', // Replace '*' with your domain in production for added security
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type'],
 };
+
 // Apply CORS middleware globally
 router.use(cors(corsOptions));
+
 // Route to search for all services or by specific criteria
 router.get('/servicessearch', async (req, res) => {
     const { servicoID, localidadeServico } = req.query;
@@ -37,6 +40,8 @@ router.get('/servicessearch', async (req, res) => {
     }
     if (!params.localidadeServico) {
         delete params.localidadeServico;
+    }
+
     // Ensure no parameters are sent as undefined or null
     if (Object.keys(params).length === 0) {
         return res.status(400).json({ error: 'No valid search parameters provided.' });
@@ -51,6 +56,7 @@ router.get('/servicessearch', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 // Route to create a new Servico_Hospitalar
 router.post('/servico-completo', async (req, res) => {
     const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
@@ -68,6 +74,7 @@ router.post('/servico-completo', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 // Route to update a Servico_Hospitalar by ID
 router.put('/servico/:id', async (req, res) => {
     const { id } = req.params;
@@ -90,6 +97,7 @@ router.put('/servico/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 // Route to delete a Servico_Hospitalar by ID
 router.delete('/servico/:id', async (req, res) => {
     const { id } = req.params;
@@ -109,4 +117,5 @@ router.delete('/servico/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 module.exports = router;
