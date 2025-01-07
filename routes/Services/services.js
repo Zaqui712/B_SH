@@ -17,24 +17,28 @@ router.use(cors(corsOptions));
 router.get('/servicessearch', async (req, res) => {
     const { servicoID, localidadeServico } = req.query;
 
+    // Base query to fetch services
     let query = `
     SELECT sh.servicoID, sh.localidadeServico, sh.nomeServico, sh.descServico, sh.servicoDisponivel24horas
     FROM SERVICOSDB.dbo.Servico_Hospitalar sh
     WHERE 1=1
 	`;
 
+    // Prepare the parameters object
+    const params = {};
+
+    // Add conditions to query if the parameters are provided
     if (servicoID) {
         query += ` AND sh.servicoID = @servicoID`;
+        params.servicoID = servicoID;
     }
     if (localidadeServico) {
         query += ` AND sh.localidadeServico LIKE @localidadeServico`;
+        params.localidadeServico = `%${localidadeServico}%`;  // Add wildcard for LIKE query
     }
 
     try {
-        const params = {
-            servicoID: servicoID,
-            localidadeServico: localidadeServico ? `%${localidadeServico}%` : '%'
-        };
+        // Execute the query with parameters
         const results = await executeQuery(query, params);
         res.status(200).json(results.recordset);
     } catch (error) {
@@ -50,7 +54,8 @@ router.post('/servico-completo', async (req, res) => {
     try {
         const servicoQuery = `
 		INSERT INTO SERVICOSDB.dbo.Servico_Hospitalar (localidadeServico, nomeServico, descServico, servicoDisponivel24horas)
-		VALUES (@localidadeServico, @nomeServico, @descServico, @servicoDisponivel24horas) OUTPUT INSERTED.servicoID, INSERTED.localidadeServico, INSERTED.nomeServico, INSERTED.descServico, INSERTED.servicoDisponivel24horas;
+		VALUES (@localidadeServico, @nomeServico, @descServico, @servicoDisponivel24horas)
+        OUTPUT INSERTED.servicoID, INSERTED.localidadeServico, INSERTED.nomeServico, INSERTED.descServico, INSERTED.servicoDisponivel24horas;
 		`;
 
         const servicoValues = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas };
@@ -72,11 +77,13 @@ router.put('/servico/:id', async (req, res) => {
         const query = `
 		UPDATE SERVICOSDB.dbo.Servico_Hospitalar
 		SET localidadeServico = @localidadeServico, nomeServico = @nomeServico, descServico = @descServico, servicoDisponivel24horas = @servicoDisponivel24horas
-		WHERE servicoID = @id OUTPUT INSERTED.servicoID, INSERTED.localidadeServico, INSERTED.nomeServico, INSERTED.descServico, INSERTED.servicoDisponivel24horas;
+		WHERE servicoID = @id
+		OUTPUT INSERTED.servicoID, INSERTED.localidadeServico, INSERTED.nomeServico, INSERTED.descServico, INSERTED.servicoDisponivel24horas;
 		`;
 
         const values = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas, id };
         const result = await executeQuery(query, values);
+
         if (result.recordset.length === 0) {
             return res.status(404).json({ error: 'Servico_Hospitalar not found' });
         }
@@ -94,10 +101,12 @@ router.delete('/servico/:id', async (req, res) => {
     try {
         const query = `
 		DELETE FROM SERVICOSDB.dbo.Servico_Hospitalar
-		WHERE servicoID = @id OUTPUT DELETED.servicoID, DELETED.localidadeServico, DELETED.nomeServico, DELETED.descServico, DELETED.servicoDisponivel24horas;
+		WHERE servicoID = @id
+		OUTPUT DELETED.servicoID, DELETED.localidadeServico, DELETED.nomeServico, DELETED.descServico, DELETED.servicoDisponivel24horas;
 		`;
 
         const result = await executeQuery(query, { id });
+
         if (result.recordset.length === 0) {
             return res.status(404).json({ error: 'Servico_Hospitalar not found' });
         }
