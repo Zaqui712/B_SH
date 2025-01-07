@@ -1,34 +1,44 @@
 const sql = require('mssql');
 require('dotenv').config();
 
-// Define your Azure SQL Database connection configuration
+// Configure your Azure SQL Database connection
 const poolPromise = new sql.ConnectionPool({
     user: process.env.DB_USER,
     password: process.env.DB_PASS,
-    server: process.env.DB_HOST, // Usually in format: 'servername.database.windows.net'
+    server: process.env.DB_HOST, // Format: 'servername.database.windows.net'
     database: process.env.DB_NAME,
     options: {
-        encrypt: true, // Needed for Azure SQL
-        trustServerCertificate: true // Disable SSL verification (optional, but useful for testing)
+        encrypt: true, // Required for Azure SQL
+        trustServerCertificate: true // Disable SSL verification (optional, for testing)
     }
-}).connect();
+}).connect(); // Creates and connects the pool
 
+/**
+ * Returns a connected pool instance.
+ * @returns {Promise<sql.ConnectionPool>} The connected pool.
+ */
 const getPool = async () => {
     try {
         const pool = await poolPromise;
         return pool;
     } catch (error) {
-        console.error('Error connecting to database: ', error);
+        console.error('Error connecting to database:', error);
         throw new Error('Database connection failed');
     }
 };
 
+/**
+ * Executes a parameterized query on the database.
+ * @param {string} query - SQL query to execute.
+ * @param {Array} params - Array of query parameters.
+ * @returns {Promise<sql.IResult<any>>} Query result.
+ */
 const executeQuery = async (query, params = []) => {
     try {
         const pool = await getPool();
         const request = pool.request();
-        
-        // Bind parameters if provided
+
+        // Bind parameters to the request
         params.forEach((param, index) => {
             request.input(`param${index + 1}`, param);
         });
@@ -36,9 +46,10 @@ const executeQuery = async (query, params = []) => {
         const result = await request.query(query);
         return result;
     } catch (error) {
-        console.error('Error executing query: ', error);
+        console.error('Error executing query:', error);
         throw new Error('Query execution failed');
     }
 };
 
+// Export the database helper functions
 module.exports = { getPool, executeQuery };
