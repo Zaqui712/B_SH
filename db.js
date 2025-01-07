@@ -5,13 +5,23 @@ require('dotenv').config();
 const poolPromise = new sql.ConnectionPool({
     user: process.env.DB_USER,
     password: process.env.DB_PASS,
-    server: process.env.DB_HOST, // Format: 'servername.database.windows.net'
-    database: 'SERVICOSDB', // Explicitly set the database name to SERVICOSDB
+    server: process.env.DB_HOST,
+    database: 'SERVICOSDB',
     options: {
-        encrypt: true, // Required for Azure SQL
-        trustServerCertificate: true // Disable SSL verification (optional, for testing)
+        encrypt: true,
+        trustServerCertificate: true
     }
-}).connect(); // Creates and connects the pool
+})
+    .connect()
+    .then((pool) => {
+        console.log('Connected to Azure SQL Database');
+        return pool;
+    })
+    .catch((err) => {
+        console.error('Database connection failed:', err);
+        throw err;
+    });
+
 
 /**
  * Returns a connected pool instance.
@@ -20,9 +30,11 @@ const poolPromise = new sql.ConnectionPool({
 const getPool = async () => {
     try {
         const pool = await poolPromise;
+        if (!pool) throw new Error('Pool is undefined');
+        console.log('Database pool acquired successfully');
         return pool;
     } catch (error) {
-        console.error('Error connecting to database:', error);
+        console.error('Error acquiring database pool:', error);
         throw new Error('Database connection failed');
     }
 };
@@ -38,12 +50,13 @@ const executeQuery = async (query, params = {}) => {
         const pool = await getPool();
         const request = pool.request();
 
-        // Bind parameters to the request
         Object.keys(params).forEach((key) => {
+            console.log(`Binding parameter: ${key} = ${params[key]}`);
             request.input(key, params[key]);
         });
 
         const result = await request.query(query);
+        console.log('Query executed successfully:', result.recordset);
         return result;
     } catch (error) {
         console.error('Error executing query:', error);
