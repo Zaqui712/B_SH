@@ -13,21 +13,25 @@ const config = {
     }
 };
 
-// Test the connection
+// Test the connection and perform SELECT queries
 const testConnection = async () => {
     try {
         // Connect to the database
         await sql.connect(config);
         console.log('Connected to the Azure SQL Database successfully!');
         
-        // Optionally, you can run a simple query to verify
-        const result = await sql.query('SELECT 1 AS test');
-        console.log('Test query result:', result.recordset);
-        
+        // Perform SELECT queries on the same tables as services.js
+        const selectServicesQuery = `
+            SELECT sh.servicoID, sh.localidadeServico, sh.nomeServico, sh.descServico, sh.servicoDisponivel24horas
+            FROM SERVICOSDB.Servico_Hospitalar sh
+        `;
+        const servicesResult = await sql.query(selectServicesQuery);
+        console.log('Services query result:', servicesResult.recordset);
+
         // Close the connection
         await sql.close();
     } catch (err) {
-        console.error('Failed to connect to the database:', err);
+        console.error('Failed to connect to the database or execute query:', err);
     }
 };
 

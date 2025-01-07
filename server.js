@@ -39,6 +39,12 @@ app.use('/api/notifications', notificationsRoutes);
 const productsRoutes = require('./routes/Products/products');
 app.use('/api/products', productsRoutes);
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something broke!');
+});
+
 // Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
