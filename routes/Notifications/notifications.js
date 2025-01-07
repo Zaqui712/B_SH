@@ -15,60 +15,60 @@ router.use(cors(corsOptions));
 
 // Alerts handler function
 const Alerts = async (req, res) => {
-  const pool = getPool();
+  const pool = await getPool();
 
   // Query for checking medication quantities
   const checkMedicationsQuery = `
     SELECT msh.medicamentoid, msh.servicoid, msh.quantidadedisponivel, msh.quantidademinima,
            m.nomeMedicamento, tm.descricao
-    FROM servicosBD.Medicamento_Servico_Hospitalar msh
-    JOIN servicosBD.Medicamento m ON msh.medicamentoid = m.medicamentoid
-    JOIN servicosBD.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
+    FROM SERVICOSDB.Medicamento_Servico_Hospitalar msh
+    JOIN SERVICOSDB.Medicamento m ON msh.medicamentoid = m.medicamentoid
+    JOIN SERVICOSDB.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
     WHERE msh.quantidadedisponivel < msh.quantidademinima;
   `;
 
   // Query for listing pending orders
   const pendingOrdersQuery = `
     SELECT e.*, a.nomeProprio, a.ultimoNome
-    FROM servicosBD.Encomenda e
-    JOIN servicosBD.Administrador a ON e.adminID = a.adminID
-    WHERE e.aprovadoPorAdministrador = false;
+    FROM SERVICOSDB.Encomenda e
+    JOIN SERVICOSDB.Administrador a ON e.adminID = a.adminID
+    WHERE e.aprovadoPorAdministrador = 0;
   `;
 
   // Query for listing pending requests for approval
   const pendingRequestsQuery = `
     SELECT req.*, pro.nomeProprio, pro.ultimoNome 
-    FROM servicosBD.Requisicao req
-    JOIN servicosBD.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
-    WHERE req.aprovadoPorAdministrador = false;
+    FROM SERVICOSDB.Requisicao req
+    JOIN SERVICOSDB.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+    WHERE req.aprovadoPorAdministrador = 0;
   `;
 
   try {
     // Execute all queries concurrently
     const [medicationsResults, ordersResults, requestsResults] = await Promise.all([
-      pool.query(checkMedicationsQuery),
-      pool.query(pendingOrdersQuery),
-      pool.query(pendingRequestsQuery)
+      pool.request().query(checkMedicationsQuery),
+      pool.request().query(pendingOrdersQuery),
+      pool.request().query(pendingRequestsQuery)
     ]);
 
     // Check medication quantities
-    const medications = medicationsResults.rows;
+    const medications = medicationsResults.recordset;
     if (medications.length > 0) {
       console.log('Medications below minimum quantity:', medications);
     }
 
     // Check pending orders
-    const orders = ordersResults.rows;
+    const orders = ordersResults.recordset;
     if (orders.length > 0) {
       console.log('Pending approval orders:', orders);
     }
 
     // Check pending requests
-    const requests = requestsResults.rows;
+    const requests = requestsResults.recordset;
     if (requests.length > 0) {
       console.log('Pending approval requests:');
       requests.forEach((row) => {
-        console.log(`- ID: ${row.requisicaoid}, Name: ${row.nomeProprio} ${row.ultimoNome}, Request Date: ${row.dataRequisicao}`);
+        console.log(`- ID: ${row.requisicaoID}, Name: ${row.nomeProprio} ${row.ultimoNome}, Request Date: ${row.dataRequisicao}`);
       });
     }
 

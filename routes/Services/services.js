@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const router = express.Router();
-const { getPool } = require('../../db');
+const { executeQuery } = require('../../db');
 
 // Enable CORS for the backend to allow any origin
 const corsOptions = {
@@ -15,94 +15,47 @@ router.use(cors(corsOptions));
 
 // Route to search for all services or by specific criteria
 router.get('/servicessearch', async (req, res) => {
-    const pool = getPool();
-    const { servicoID, tipoID, localidadeServico } = req.query;
-
-    await pool.query('SET search_path TO servicosBD');
+    const { servicoID, localidadeServico } = req.query;
 
     let query = `
-        SELECT sh.servicoID, sh.localidadeServico, sh.tipoID, ts.descricao, ts.servicoDisponivel24horas
+        SELECT sh.servicoID, sh.localidadeServico, sh.nomeServico, sh.descServico, sh.servicoDisponivel24horas
         FROM Servico_Hospitalar sh
-        JOIN Tipo_Servico ts ON sh.tipoID = ts.tipoID
         WHERE 1=1
     `;
 
     if (servicoID) {
-        query += ` AND sh.servicoID = ${servicoID}`;
-    }
-    if (tipoID) {
-        query += ` AND sh.tipoID = ${tipoID}`;
+        query += ` AND sh.servicoID = @servicoID`;
     }
     if (localidadeServico) {
-        query += ` AND sh.localidadeServico ILIKE '%${localidadeServico}%'`;
+        query += ` AND sh.localidadeServico LIKE @localidadeServico`;
     }
 
     try {
-        const results = await pool.query(query);
-        res.status(200).json(results.rows);
+        const params = {
+            servicoID: servicoID,
+            localidadeServico: `%${localidadeServico}%`
+        };
+        const results = await executeQuery(query, params);
+        res.status(200).json(results.recordset);
     } catch (error) {
         console.error('Error searching services:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
 
-// Route to list all Tipo_Servicos
-router.get('/tiposervicos', async (req, res) => {
-    const pool = getPool();
-
-    try {
-        await pool.query('SET search_path TO servicosBD');
-        const query = `
-            SELECT tipoID, descricao, servicoDisponivel24horas
-            FROM Tipo_Servico;
-        `;
-        const results = await pool.query(query);
-        res.status(200).json(results.rows);
-    } catch (error) {
-        console.error('Error listing Tipo_Servicos:', error.message);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Route to create a new Servico_Hospitalar and/or Tipo_Servico
+// Route to create a new Servico_Hospitalar
 router.post('/servico-completo', async (req, res) => {
-    const pool = getPool();
-    const { localidadeServico, tipoID, novoTipoServico } = req.body;
+    const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
 
     try {
-        await pool.query('SET search_path TO servicosBD');
-        let finalTipoID = tipoID;
-
-        // If creating a new Tipo_Servico
-        if (novoTipoServico) {
-            const { descricao, servicoDisponivel24horas } = novoTipoServico;
-
-            if (!descricao) {
-                return res.status(400).json({ error: "Descricao for Tipo_Servico is required." });
-            }
-
-            const tipoServicoQuery = `
-                INSERT INTO Tipo_Servico (descricao, servicoDisponivel24horas)
-                VALUES ($1, $2) RETURNING tipoID;
-            `;
-            const tipoServicoValues = [descricao, servicoDisponivel24horas];
-            const tipoResult = await pool.query(tipoServicoQuery, tipoServicoValues);
-            finalTipoID = tipoResult.rows[0].tipoid;
-        }
-
-        if (!finalTipoID) {
-            return res.status(400).json({ error: "tipoID or novoTipoServico must be provided." });
-        }
-
-        // Create the new Servico_Hospitalar
         const servicoQuery = `
-            INSERT INTO Servico_Hospitalar (localidadeServico, tipoID)
-            VALUES ($1, $2) RETURNING *;
+            INSERT INTO Servico_Hospitalar (localidadeServico, nomeServico, descServico, servicoDisponivel24horas)
+            VALUES (@localidadeServico, @nomeServico, @descServico, @servicoDisponivel24horas) RETURNING *;
         `;
-        const servicoValues = [localidadeServico, finalTipoID];
-        const servicoResult = await pool.query(servicoQuery, servicoValues);
+        const servicoValues = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas };
+        const servicoResult = await executeQuery(servicoQuery, servicoValues);
 
-        res.status(201).json(servicoResult.rows[0]);
+        res.status(201).json(servicoResult.recordset[0]);
     } catch (error) {
         console.error('Error creating Servico_Hospitalar:', error.message);
         res.status(500).json({ error: error.message });
@@ -111,23 +64,21 @@ router.post('/servico-completo', async (req, res) => {
 
 // Route to update a Servico_Hospitalar by ID
 router.put('/servico/:id', async (req, res) => {
-    const pool = getPool();
     const { id } = req.params;
-    const { localidadeServico, tipoID } = req.body;
+    const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
 
     try {
-        await pool.query('SET search_path TO servicosBD');
         const query = `
             UPDATE Servico_Hospitalar
-            SET localidadeServico = $1, tipoID = $2
-            WHERE servicoID = $3 RETURNING *;
+            SET localidadeServico = @localidadeServico, nomeServico = @nomeServico, descServico = @descServico, servicoDisponivel24horas = @servicoDisponivel24horas
+            WHERE servicoID = @id RETURNING *;
         `;
-        const values = [localidadeServico, tipoID, id];
-        const result = await pool.query(query, values);
-        if (result.rowCount === 0) {
+        const values = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas, id };
+        const result = await executeQuery(query, values);
+        if (result.recordset.length === 0) {
             return res.status(404).json({ error: 'Servico_Hospitalar not found' });
         }
-        res.status(200).json(result.rows[0]);
+        res.status(200).json(result.recordset[0]);
     } catch (error) {
         console.error('Error updating Servico_Hospitalar:', error.message);
         res.status(500).json({ error: error.message });
@@ -136,17 +87,15 @@ router.put('/servico/:id', async (req, res) => {
 
 // Route to delete a Servico_Hospitalar by ID
 router.delete('/servico/:id', async (req, res) => {
-    const pool = getPool();
     const { id } = req.params;
 
     try {
-        await pool.query('SET search_path TO servicosBD');
         const query = `
             DELETE FROM Servico_Hospitalar
-            WHERE servicoID = $1 RETURNING *;
+            WHERE servicoID = @id RETURNING *;
         `;
-        const result = await pool.query(query, [id]);
-        if (result.rowCount === 0) {
+        const result = await executeQuery(query, { id });
+        if (result.recordset.length === 0) {
             return res.status(404).json({ error: 'Servico_Hospitalar not found' });
         }
         res.status(200).json({ message: 'Servico_Hospitalar deleted successfully' });

@@ -17,14 +17,13 @@ router.use(cors(corsOptions));
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const pool = getPool();
+    const pool = await getPool();
     
     // Fetch user credentials
-    const credentialsResult = await pool.query(
-      'SELECT * FROM servicosBD.Credenciais WHERE email = $1',
-      [email]
-    );
-    const user = credentialsResult.rows[0];
+    const credentialsResult = await pool.request()
+      .input('email', email)
+      .query('SELECT * FROM SERVICOSDB.Credenciais WHERE email = @email');
+    const user = credentialsResult.recordset[0];
 
     if (!user || user.password !== password) {
       return res.status(400).send('Invalid credentials');
@@ -32,21 +31,19 @@ router.post('/login', async (req, res) => {
 
     // Fetch the name based on user type (Admin or Professional)
     let nameResult;
-    if (user.utilizadoradministrador) {
+    if (user.utilizadorAdministrador) {
       // Admin user
-      nameResult = await pool.query(
-        'SELECT nomeProprio, ultimoNome FROM servicosBD.Administrador WHERE credenciaisID = $1',
-        [user.credenciaisid]
-      );
+      nameResult = await pool.request()
+        .input('credenciaisID', user.credenciaisID)
+        .query('SELECT nomeProprio, ultimoNome FROM SERVICOSDB.Administrador WHERE credenciaisID = @credenciaisID');
     } else {
       // Healthcare professional user
-      nameResult = await pool.query(
-        'SELECT nomeProprio, ultimoNome FROM servicosBD.Profissional_De_Saude WHERE credenciaisID = $1',
-        [user.credenciaisid]
-      );
+      nameResult = await pool.request()
+        .input('credenciaisID', user.credenciaisID)
+        .query('SELECT nomeProprio, ultimoNome FROM SERVICOSDB.Profissional_De_Saude WHERE credenciaisID = @credenciaisID');
     }
 
-    const nameData = nameResult.rows[0];
+    const nameData = nameResult.recordset[0];
     if (!nameData) {
       return res.status(400).send('User name not found');
     }
@@ -54,10 +51,10 @@ router.post('/login', async (req, res) => {
     // Create JWT token
     const token = jwt.sign(
       { 
-        id: user.credenciaisid, 
-        isAdmin: user.utilizadoradministrador, 
-        firstName: nameData.nomeproprio,
-        lastName: nameData.ultimonome
+        id: user.credenciaisID, 
+        isAdmin: user.utilizadorAdministrador, 
+        firstName: nameData.nomeProprio,
+        lastName: nameData.ultimoNome
       },
       process.env.JWT_SECRET || 'secret', // Use env variable for production
       { expiresIn: '1h' }
@@ -66,8 +63,8 @@ router.post('/login', async (req, res) => {
     // Send token and user name as response
     res.json({ 
       token, 
-      firstName: nameData.nomeproprio, 
-      lastName: nameData.ultimonome 
+      firstName: nameData.nomeProprio, 
+      lastName: nameData.ultimoNome 
     });
   } catch (error) {
     res.status(500).send('Internal server error');

@@ -5,53 +5,59 @@ const { getPool } = require('../../db'); // Updated path
 // Function to generate orders
 const generateOrders = async (req, res) => {
   try {
-    const pool = getPool();
+    const pool = await getPool();
     const query = `
       SELECT msh.medicamentoid, msh.servicoid, msh.quantidadedisponivel, msh.quantidademinima,
              m.nomeMedicamento, tm.descricao, sh.localidadeServico, ts.descricao AS tipoServico
-      FROM servicosBD.Medicamento_Servico_Hospitalar msh
-      JOIN servicosBD.Medicamento m ON msh.medicamentoid = m.medicamentoid
-      JOIN servicosBD.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
-      JOIN servicosBD.Servico_Hospitalar sh ON msh.servicoid = sh.servicoid
-      JOIN servicosBD.Tipo_Servico ts ON sh.tipoID = ts.tipoID
+      FROM SERVICOSDB.Medicamento_Servico_Hospitalar msh
+      JOIN SERVICOSDB.Medicamento m ON msh.medicamentoid = m.medicamentoid
+      JOIN SERVICOSDB.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
+      JOIN SERVICOSDB.Servico_Hospitalar sh ON msh.servicoid = sh.servicoid
+      JOIN SERVICOSDB.Tipo_Servico ts ON sh.tipoID = ts.tipoID
     `;
-    const result = await pool.query(query);
-    const medications = result.rows;
+    const result = await pool.request().query(query);
+    const medications = result.recordset;
 
     for (const med of medications) {
       if (med.quantidadedisponivel < med.quantidademinima) {
-        console.log(`Need to order: ${med.nomemedicamento}, Service: ${med.localidadeServico || 'Unknown'} (${med.tipoServico || 'Unknown'})`);
+        console.log(`Need to order: ${med.nomeMedicamento}, Service: ${med.localidadeServico || 'Unknown'} (${med.tipoServico || 'Unknown'})`);
 
         const checkOrderQuery = `
           SELECT COUNT(*) AS count
-          FROM servicosBD.Encomenda
-          WHERE fornecedorID = 1 AND adminID = 1 AND estadoID = 1 AND encomendaCompleta = false
-          AND dataEncomenda >= NOW() - interval '1 day'
+          FROM SERVICOSDB.Encomenda
+          WHERE fornecedorID = 1 AND adminID = 1 AND estadoID = 1 AND encomendaCompleta = 0
+          AND dataEncomenda >= DATEADD(day, -1, GETDATE())
           AND encomendaID IN (
             SELECT encomendaID
-            FROM servicosBD.Medicamento_Encomenda
-            WHERE medicamentoID = $1
+            FROM SERVICOSDB.Medicamento_Encomenda
+            WHERE medicamentoID = @medicamentoID
           )
         `;
-        const checkOrderResult = await pool.query(checkOrderQuery, [med.medicamentoid]);
-        if (checkOrderResult.rows[0].count == 0) {
+        const checkOrderResult = await pool.request().input('medicamentoID', med.medicamentoid).query(checkOrderQuery);
+        if (checkOrderResult.recordset[0].count == 0) {
           const createOrderQuery = `
-            INSERT INTO servicosBD.Encomenda (estadoID, adminID, fornecedorID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada)
-            VALUES (1, 1, 1, false, false, NOW(), NOW() + interval '7 days', $1)
-            RETURNING encomendaID
+            INSERT INTO SERVICOSDB.Encomenda (estadoID, adminID, fornecedorID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada)
+            VALUES (1, 1, 1, 0, 0, GETDATE(), DATEADD(day, 7, GETDATE()), @quantidadeEnviada)
+            OUTPUT INSERTED.encomendaID
           `;
-          const createOrderResult = await pool.query(createOrderQuery, [med.quantidademinima - med.quantidadedisponivel]);
-          const newOrderID = createOrderResult.rows[0].encomendaid;
+          const createOrderResult = await pool.request()
+            .input('quantidadeEnviada', med.quantidademinima - med.quantidadedisponivel)
+            .query(createOrderQuery);
+          const newOrderID = createOrderResult.recordset[0].encomendaID;
 
           const linkMedicationQuery = `
-            INSERT INTO servicosBD.Medicamento_Encomenda (medicamentoID, encomendaID, quantidade)
-            VALUES ($1, $2, $3)
+            INSERT INTO SERVICOSDB.Medicamento_Encomenda (medicamentoID, encomendaID, quantidade)
+            VALUES (@medicamentoID, @encomendaID, @quantidade)
           `;
-          await pool.query(linkMedicationQuery, [med.medicamentoid, newOrderID, med.quantidademinima - med.quantidadedisponivel]);
+          await pool.request()
+            .input('medicamentoID', med.medicamentoid)
+            .input('encomendaID', newOrderID)
+            .input('quantidade', med.quantidademinima - med.quantidadedisponivel)
+            .query(linkMedicationQuery);
 
-          console.log(`Order created for ${med.nomemedicamento}, Service: ${med.localidadeServico || 'Unknown'} (${med.tipoServico || 'Unknown'})`);
+          console.log(`Order created for ${med.nomeMedicamento}, Service: ${med.localidadeServico || 'Unknown'} (${med.tipoServico || 'Unknown'})`);
         } else {
-          console.log(`Order already exists for ${med.nomemedicamento}, Service: ${med.localidadeServico || 'Unknown'} (${med.tipoServico || 'Unknown'})`);
+          console.log(`Order already exists for ${med.nomeMedicamento}, Service: ${med.localidadeServico || 'Unknown'} (${med.tipoServico || 'Unknown'})`);
         }
       }
     }

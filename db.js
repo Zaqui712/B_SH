@@ -30,17 +30,17 @@ const getPool = async () => {
 /**
  * Executes a parameterized query on the database.
  * @param {string} query - SQL query to execute.
- * @param {Array} params - Array of query parameters.
+ * @param {Object} params - Object of query parameters.
  * @returns {Promise<sql.IResult<any>>} Query result.
  */
-const executeQuery = async (query, params = []) => {
+const executeQuery = async (query, params = {}) => {
     try {
         const pool = await getPool();
         const request = pool.request();
 
         // Bind parameters to the request
-        params.forEach((param, index) => {
-            request.input(`param${index + 1}`, param);
+        Object.keys(params).forEach((key) => {
+            request.input(key, params[key]);
         });
 
         const result = await request.query(query);

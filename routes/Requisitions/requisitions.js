@@ -17,10 +17,10 @@ router.use(cors(corsOptions));
 const verifyAdmin = async (req, res, next) => {
   const { adminID } = req.body;
   try {
-    const pool = getPool();
-    const query = 'SELECT utilizadorAdministrador FROM servicosBD.Credenciais WHERE credenciaisID = $1';
-    const result = await pool.query(query, [adminID]);
-    if (result.rows.length > 0 && result.rows[0].utilizadoradministrador) {
+    const pool = await getPool();
+    const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.Credenciais WHERE credenciaisID = @adminID';
+    const result = await pool.request().input('adminID', adminID).query(query);
+    if (result.recordset.length > 0 && result.recordset[0].utilizadorAdministrador) {
       next();
     } else {
       res.status(403).send('Access denied. Only administrators can approve requests.');
@@ -35,11 +35,21 @@ const verifyAdmin = async (req, res, next) => {
 router.post('/create', async (req, res) => {
   const { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega } = req.body;
   try {
-    const pool = getPool();
-    const result = await pool.query(
-      'INSERT INTO servicosBD.Requisicao (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega]
-    );
+    const pool = await getPool();
+    const query = `
+      INSERT INTO SERVICOSDB.Requisicao (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
+      VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega)
+      OUTPUT INSERTED.*
+    `;
+    const result = await pool.request()
+      .input('estadoID', estadoID)
+      .input('profissionalID', profissionalID)
+      .input('adminID', adminID)
+      .input('aprovadoPorAdministrador', aprovadoPorAdministrador)
+      .input('requisicaoCompleta', requisicaoCompleta)
+      .input('dataRequisicao', dataRequisicao)
+      .input('dataEntrega', dataEntrega)
+      .query(query);
     res.status(201).send('Request created successfully');
   } catch (error) {
     res.status(400).send(error.message);
@@ -50,12 +60,12 @@ router.post('/create', async (req, res) => {
 // Route to list all requests (GET /api/request/)
 router.get('/all', async (req, res) => {
   try {
-    const pool = getPool();
-    const query = `SELECT * FROM servicosBD.Requisicao`; // Fetch all requests
-    const result = await pool.query(query);
+    const pool = await getPool();
+    const query = `SELECT * FROM SERVICOSDB.Requisicao`; // Fetch all requests
+    const result = await pool.request().query(query);
 
-    if (result.rows.length > 0) {
-      res.status(200).json(result.rows);
+    if (result.recordset.length > 0) {
+      res.status(200).json(result.recordset);
     } else {
       res.status(200).json({ message: 'No requests found.' });
     }
@@ -68,21 +78,21 @@ router.get('/all', async (req, res) => {
 // Route to list pending approval requests (GET /api/request/pending-approval)
 router.get('/pending-approval', async (req, res) => {
   try {
-    const pool = getPool();
+    const pool = await getPool();
     const query = `
       SELECT req.*, pro.nomeProprio, pro.ultimoNome 
-      FROM servicosBD.Requisicao req
-      JOIN servicosBD.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
-      WHERE req.aprovadoPorAdministrador = false
+      FROM SERVICOSDB.Requisicao req
+      JOIN SERVICOSDB.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+      WHERE req.aprovadoPorAdministrador = 0
     `;
-    const result = await pool.query(query);
+    const result = await pool.request().query(query);
 
-    if (result.rows.length > 0) {
+    if (result.recordset.length > 0) {
       console.log('Pending approval requests:');
-      result.rows.forEach((row) => {
-        console.log(`- ID: ${row.requisicaoid}, Name: ${row.nomeProprio} ${row.ultimoNome}, Request Date: ${row.dataRequisicao}`);
+      result.recordset.forEach((row) => {
+        console.log(`- ID: ${row.requisicaoID}, Name: ${row.nomeProprio} ${row.ultimoNome}, Request Date: ${row.dataRequisicao}`);
       });
-      res.status(200).json(result.rows);
+      res.status(200).json(result.recordset);
     } else {
       console.log('No pending approval requests.');
       res.status(200).json({ message: 'No pending approval requests.' });
@@ -97,15 +107,15 @@ router.get('/pending-approval', async (req, res) => {
 router.get('/list/:servicoID', async (req, res) => {
   const { servicoID } = req.params;
   try {
-    const pool = getPool();
-    const result = await pool.query(
-      `SELECT req.*, pro.nomeProprio, pro.ultimoNome 
-       FROM servicosBD.Requisicao req
-       JOIN servicosBD.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
-       WHERE pro.servicoID = $1`,
-      [servicoID]
-    );
-    res.json(result.rows);
+    const pool = await getPool();
+    const query = `
+      SELECT req.*, pro.nomeProprio, pro.ultimoNome 
+      FROM SERVICOSDB.Requisicao req
+      JOIN SERVICOSDB.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+      WHERE pro.servicoID = @servicoID
+    `;
+    const result = await pool.request().input('servicoID', servicoID).query(query);
+    res.json(result.recordset);
   } catch (error) {
     console.error(error);
     res.status(400).send(error.message);
@@ -118,21 +128,21 @@ router.put('/approve/:requestID', verifyAdmin, async (req, res) => {
   const { requestID } = req.params;
 
   try {
-    const pool = getPool();
+    const pool = await getPool();
     const query = `
-      UPDATE servicosBD.Requisicao
-      SET aprovadoPorAdministrador = true
-      WHERE requisicaoID = $1
-      RETURNING *
+      UPDATE SERVICOSDB.Requisicao
+      SET aprovadoPorAdministrador = 1
+      WHERE requisicaoID = @requestID
+      OUTPUT INSERTED.*
     `;
 
-    const result = await pool.query(query, [requestID]);
+    const result = await pool.request().input('requestID', requestID).query(query);
 
-    if (result.rowCount === 0) {
+    if (result.recordset.length === 0) {
       return res.status(404).json({ message: 'Request not found or already approved.' });
     }
 
-    res.status(200).json({ message: 'Request approved successfully.', request: result.rows[0] });
+    res.status(200).json({ message: 'Request approved successfully.', request: result.recordset[0] });
   } catch (error) {
     console.error('Error approving request:', error.message);
     res.status(500).send('Error approving request');
@@ -145,21 +155,21 @@ router.delete('/:requestID', async (req, res) => {
   const { requestID } = req.params;
 
   try {
-    const pool = getPool();
+    const pool = await getPool();
 
     // Delete the request
     const deleteRequestQuery = `
-      DELETE FROM servicosBD.Requisicao
-      WHERE requisicaoID = $1
-      RETURNING *
+      DELETE FROM SERVICOSDB.Requisicao
+      WHERE requisicaoID = @requestID
+      OUTPUT DELETED.*
     `;
-    const result = await pool.query(deleteRequestQuery, [requestID]);
+    const result = await pool.request().input('requestID', requestID).query(deleteRequestQuery);
 
-    if (result.rowCount === 0) {
+    if (result.recordset.length === 0) {
       return res.status(404).json({ message: 'Request not found.' });
     }
 
-    res.status(200).json({ message: 'Request deleted successfully.', request: result.rows[0] });
+    res.status(200).json({ message: 'Request deleted successfully.', request: result.recordset[0] });
   } catch (error) {
     console.error('Error deleting request:', error.message);
     res.status(500).send('Error deleting request');
@@ -170,13 +180,13 @@ router.delete('/:requestID', async (req, res) => {
 router.post('/approve-order', verifyAdmin, async (req, res) => {
   const { encomendaID } = req.body;
   try {
-    const pool = getPool();
+    const pool = await getPool();
     const query = `
-      UPDATE servicosBD.Encomenda
-      SET aprovadoPorAdministrador = true
-      WHERE encomendaID = $1
+      UPDATE SERVICOSDB.Encomenda
+      SET aprovadoPorAdministrador = 1
+      WHERE encomendaID = @encomendaID
     `;
-    await pool.query(query, [encomendaID]);
+    await pool.request().input('encomendaID', encomendaID).query(query);
     res.status(200).send('Order approved successfully');
   } catch (error) {
     res.status(400).send(error.message);
