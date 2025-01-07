@@ -6,7 +6,7 @@ const poolPromise = new sql.ConnectionPool({
     user: process.env.DB_USER,
     password: process.env.DB_PASS,
     server: process.env.DB_HOST, // Format: 'servername.database.windows.net'
-    database: process.env.DB_NAME,
+    database: 'SERVICOSDB', // Explicitly set the database name to SERVICOSDB
     options: {
         encrypt: true, // Required for Azure SQL
         trustServerCertificate: true // Disable SSL verification (optional, for testing)
