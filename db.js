@@ -50,16 +50,18 @@ const executeQuery = async (query, params = {}) => {
         const pool = await getPool();
         const request = pool.request();
 
+        console.log("Executing Query:", query); // Log the query
+        console.log("With Parameters:", params); // Log the parameters
+
+        // Bind parameters to the request
         Object.keys(params).forEach((key) => {
-            console.log(`Binding parameter: ${key} = ${params[key]}`);
             request.input(key, params[key]);
         });
 
         const result = await request.query(query);
-        console.log('Query executed successfully:', result.recordset);
         return result;
     } catch (error) {
-        console.error('Error executing query:', error);
+        console.error('Error executing query:', error.message);
         throw new Error('Query execution failed');
     }
 };
