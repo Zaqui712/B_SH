@@ -3,9 +3,9 @@ const cors = require('cors');
 const router = express.Router();
 const { executeQuery } = require('../../db');
 
-// Enable CORS for the backend to allow any origin
+// Enable CORS for the backend to allow specific origin
 const corsOptions = {
-    origin: '*',
+    origin: '*', // Replace '*' with your domain in production for added security
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type'],
 };
@@ -33,7 +33,7 @@ router.get('/servicessearch', async (req, res) => {
     try {
         const params = {
             servicoID: servicoID,
-            localidadeServico: `%${localidadeServico}%`
+            localidadeServico: localidadeServico ? `%${localidadeServico}%` : '%'
         };
         const results = await executeQuery(query, params);
         res.status(200).json(results.recordset);
@@ -43,14 +43,14 @@ router.get('/servicessearch', async (req, res) => {
     }
 });
 
-//Route to create a new Servico_Hospitalar
+// Route to create a new Servico_Hospitalar
 router.post('/servico-completo', async (req, res) => {
     const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
 
     try {
         const servicoQuery = `
 		INSERT INTO SERVICOSDB.dbo.Servico_Hospitalar (localidadeServico, nomeServico, descServico, servicoDisponivel24horas)
-		VALUES (@localidadeServico, @nomeServico, @descServico, @servicoDisponivel24horas) OUTPUT INSERTED.*;
+		VALUES (@localidadeServico, @nomeServico, @descServico, @servicoDisponivel24horas) OUTPUT INSERTED.servicoID, INSERTED.localidadeServico, INSERTED.nomeServico, INSERTED.descServico, INSERTED.servicoDisponivel24horas;
 		`;
 
         const servicoValues = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas };
@@ -72,7 +72,7 @@ router.put('/servico/:id', async (req, res) => {
         const query = `
 		UPDATE SERVICOSDB.dbo.Servico_Hospitalar
 		SET localidadeServico = @localidadeServico, nomeServico = @nomeServico, descServico = @descServico, servicoDisponivel24horas = @servicoDisponivel24horas
-		WHERE servicoID = @id OUTPUT INSERTED.*;
+		WHERE servicoID = @id OUTPUT INSERTED.servicoID, INSERTED.localidadeServico, INSERTED.nomeServico, INSERTED.descServico, INSERTED.servicoDisponivel24horas;
 		`;
 
         const values = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas, id };
@@ -94,7 +94,7 @@ router.delete('/servico/:id', async (req, res) => {
     try {
         const query = `
 		DELETE FROM SERVICOSDB.dbo.Servico_Hospitalar
-		WHERE servicoID = @id OUTPUT DELETED.*;
+		WHERE servicoID = @id OUTPUT DELETED.servicoID, DELETED.localidadeServico, DELETED.nomeServico, DELETED.descServico, DELETED.servicoDisponivel24horas;
 		`;
 
         const result = await executeQuery(query, { id });
