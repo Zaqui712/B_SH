@@ -51,5 +51,5 @@ const executeQuery = async (query, params = {}) => {
     }
 };
 
-// Export the database helper functions
+//Export the database helper functions
 module.exports = { getPool, executeQuery };

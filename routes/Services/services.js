@@ -43,7 +43,7 @@ router.get('/servicessearch', async (req, res) => {
     }
 });
 
-// Route to create a new Servico_Hospitalar
+//Route to create a new Servico_Hospitalar
 router.post('/servico-completo', async (req, res) => {
     const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
 
