@@ -13,20 +13,21 @@ const config = {
     }
 };
 
-// Test the connection and perform SELECT queries
+// Test the connection and list all tables in the SERVICOSDB schema
 const testConnection = async () => {
     try {
         // Connect to the database
         await sql.connect(config);
         console.log('Connected to the Azure SQL Database successfully!');
         
-        // Perform SELECT queries on the same tables as services.js
-        const selectServicesQuery = `
-            SELECT sh.servicoID, sh.localidadeServico, sh.nomeServico, sh.descServico, sh.servicoDisponivel24horas
-            FROM SERVICOSDB.Servico_Hospitalar sh
+        // List all tables in the SERVICOSDB schema
+        const listTablesQuery = `
+            SELECT TABLE_NAME
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA = 'SERVICOSDB'
         `;
-        const servicesResult = await sql.query(selectServicesQuery);
-        console.log('Services query result:', servicesResult.recordset);
+        const tablesResult = await sql.query(listTablesQuery);
+        console.log('Tables in SERVICOSDB schema:', tablesResult.recordset);
 
         // Close the connection
         await sql.close();
