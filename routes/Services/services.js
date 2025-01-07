@@ -32,9 +32,18 @@ router.get('/servicessearch', async (req, res) => {
         query += ` AND sh.servicoID = @servicoID`;
         params.servicoID = servicoID;
     }
+
     if (localidadeServico) {
         query += ` AND sh.localidadeServico LIKE @localidadeServico`;
         params.localidadeServico = `%${localidadeServico}%`;  // Add wildcard for LIKE query
+    }
+
+    // Ensure that empty parameters (undefined or null) are not passed to the query
+    if (!params.servicoID) {
+        delete params.servicoID;
+    }
+    if (!params.localidadeServico) {
+        delete params.localidadeServico;
     }
 
     try {
@@ -46,6 +55,7 @@ router.get('/servicessearch', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 
 // Route to create a new Servico_Hospitalar
 router.post('/servico-completo', async (req, res) => {
