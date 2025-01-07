@@ -61,22 +61,33 @@ router.get('/all', async (req, res) => {
 
 
 // Route to create a new Servico_Hospitalar
-router.post('/servico-completo', async (req, res) => {
+router.post('/add', async (req, res) => {
     const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
     try {
-        const servicoQuery = `
-		INSERT INTO SERVICOSDB.dbo.Servico_Hospitalar (localidadeServico, nomeServico, descServico, servicoDisponivel24horas)
-		VALUES (@localidadeServico, @nomeServico, @descServico, @servicoDisponivel24horas)
-        OUTPUT INSERTED.servicoID, INSERTED.localidadeServico, INSERTED.nomeServico, INSERTED.descServico, INSERTED.servicoDisponivel24horas;
-		`;
-        const servicoValues = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas };
-        const servicoResult = await executeQuery(servicoQuery, servicoValues);
-        res.status(201).json(servicoResult.recordset[0]);
+        const insertQuery = `
+            INSERT INTO SERVICOSDB.dbo.Servico_Hospitalar (localidadeServico, nomeServico, descServico, servicoDisponivel24horas)
+            VALUES (@localidadeServico, @nomeServico, @descServico, @servicoDisponivel24horas);
+        `;
+        const selectQuery = `
+            SELECT TOP 1 servicoID, localidadeServico, nomeServico, descServico, servicoDisponivel24horas
+            FROM SERVICOSDB.dbo.Servico_Hospitalar
+            WHERE localidadeServico = @localidadeServico AND nomeServico = @nomeServico
+            ORDER BY servicoID DESC;
+        `;
+        const values = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas };
+
+        // Execute the insert query
+        await executeQuery(insertQuery, values);
+
+        // Fetch the newly inserted record
+        const result = await executeQuery(selectQuery, values);
+        res.status(201).json(result.recordset[0]);
     } catch (error) {
         console.error('Error creating Servico_Hospitalar:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
+
 
 // Route to update a Servico_Hospitalar by ID
 router.put('/servico/:id', async (req, res) => {
@@ -105,20 +116,31 @@ router.put('/servico/:id', async (req, res) => {
 router.delete('/servico/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        const query = `
-		DELETE FROM SERVICOSDB.dbo.Servico_Hospitalar
-		WHERE servicoID = @id
-		OUTPUT DELETED.servicoID, DELETED.localidadeServico, DELETED.nomeServico, DELETED.descServico, DELETED.servicoDisponivel24horas;
-		`;
-        const result = await executeQuery(query, { id });
-        if (result.recordset.length === 0) {
+        // Fetch the record before deletion
+        const selectQuery = `
+            SELECT servicoID, localidadeServico, nomeServico, descServico, servicoDisponivel24horas
+            FROM SERVICOSDB.dbo.Servico_Hospitalar
+            WHERE servicoID = @id;
+        `;
+        const deleteQuery = `
+            DELETE FROM SERVICOSDB.dbo.Servico_Hospitalar
+            WHERE servicoID = @id;
+        `;
+
+        // Fetch record to ensure it exists
+        const record = await executeQuery(selectQuery, { id });
+        if (record.recordset.length === 0) {
             return res.status(404).json({ error: 'Servico_Hospitalar not found' });
         }
-        res.status(200).json({ message: 'Servico_Hospitalar deleted successfully' });
+
+        // Execute the delete query
+        await executeQuery(deleteQuery, { id });
+        res.status(200).json({ message: 'Servico_Hospitalar deleted successfully', record: record.recordset[0] });
     } catch (error) {
         console.error('Error deleting Servico_Hospitalar:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
+
 
 module.exports = router;
