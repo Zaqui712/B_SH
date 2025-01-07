@@ -18,7 +18,6 @@ router.get('/servicessearch', async (req, res) => {
     const pool = getPool();
     const { servicoID, tipoID, localidadeServico } = req.query;
 
-    // Set the search path to the servicosBD schema
     await pool.query('SET search_path TO servicosBD');
 
     let query = `
@@ -65,20 +64,45 @@ router.get('/tiposervicos', async (req, res) => {
     }
 });
 
-// Route to create a new Servico_Hospitalar
-router.post('/servico', async (req, res) => {
+// Route to create a new Servico_Hospitalar and/or Tipo_Servico
+router.post('/servico-completo', async (req, res) => {
     const pool = getPool();
-    const { localidadeServico, tipoID } = req.body;
+    const { localidadeServico, tipoID, novoTipoServico } = req.body;
 
     try {
         await pool.query('SET search_path TO servicosBD');
-        const query = `
+        let finalTipoID = tipoID;
+
+        // If creating a new Tipo_Servico
+        if (novoTipoServico) {
+            const { descricao, servicoDisponivel24horas } = novoTipoServico;
+
+            if (!descricao) {
+                return res.status(400).json({ error: "Descricao for Tipo_Servico is required." });
+            }
+
+            const tipoServicoQuery = `
+                INSERT INTO Tipo_Servico (descricao, servicoDisponivel24horas)
+                VALUES ($1, $2) RETURNING tipoID;
+            `;
+            const tipoServicoValues = [descricao, servicoDisponivel24horas];
+            const tipoResult = await pool.query(tipoServicoQuery, tipoServicoValues);
+            finalTipoID = tipoResult.rows[0].tipoid;
+        }
+
+        if (!finalTipoID) {
+            return res.status(400).json({ error: "tipoID or novoTipoServico must be provided." });
+        }
+
+        // Create the new Servico_Hospitalar
+        const servicoQuery = `
             INSERT INTO Servico_Hospitalar (localidadeServico, tipoID)
             VALUES ($1, $2) RETURNING *;
         `;
-        const values = [localidadeServico, tipoID];
-        const result = await pool.query(query, values);
-        res.status(201).json(result.rows[0]);
+        const servicoValues = [localidadeServico, finalTipoID];
+        const servicoResult = await pool.query(servicoQuery, servicoValues);
+
+        res.status(201).json(servicoResult.rows[0]);
     } catch (error) {
         console.error('Error creating Servico_Hospitalar:', error.message);
         res.status(500).json({ error: error.message });
