@@ -1,20 +1,26 @@
-const { Pool } = require('pg');
+const sql = require('mssql');
 require('dotenv').config();
 
-const pool = new Pool({
+// Define your Azure SQL Database connection configuration
+const poolPromise = new sql.ConnectionPool({
     user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
     password: process.env.DB_PASS,
-    port: process.env.DB_PORT,
-    schema: process.env.DB_SCHEMA
-});
-
-const getPool = () => {
-    if (!pool) {
-        throw new Error('Database not connected');
+    server: process.env.DB_HOST, // Usually in format: 'servername.database.windows.net'
+    database: process.env.DB_NAME,
+    options: {
+        encrypt: true, // Needed for Azure SQL
+        trustServerCertificate: true // Disable SSL verification (optional, but useful for testing)
     }
-    return pool;
+}).connect();
+
+const getPool = async () => {
+    try {
+        const pool = await poolPromise;
+        return pool;
+    } catch (error) {
+        console.error('Error connecting to database: ', error);
+        throw new Error('Database connection failed');
+    }
 };
 
 module.exports = { getPool };
