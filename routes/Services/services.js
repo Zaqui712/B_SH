@@ -17,41 +17,49 @@ router.use(cors(corsOptions));
 router.get('/servicessearch', async (req, res) => {
     const { servicoID, localidadeServico } = req.query;
 
+    console.log('Received query parameters:', req.query); // Log received query parameters
+
     // Base query to fetch services
-    let query = 
+    let query = `
     SELECT sh.servicoID, sh.localidadeServico, sh.nomeServico, sh.descServico, sh.servicoDisponivel24horas
     FROM SERVICOSDB.dbo.Servico_Hospitalar sh
     WHERE 1=1
-	;
+    `;
 
     // Prepare the parameters object
     const params = {};
 
     // Add conditions to query if the parameters are provided
     if (servicoID) {
-        query +=  AND sh.servicoID = @servicoID;
+        query += ` AND sh.servicoID = @servicoID`;  // Concatenate correctly
         params.servicoID = servicoID;
     }
 
     if (localidadeServico) {
-        query +=  AND sh.localidadeServico LIKE @localidadeServico;
-        params.localidadeServico = %${localidadeServico}%;  // Add wildcard for LIKE query
+        query += ` AND sh.localidadeServico LIKE @localidadeServico`;  // Concatenate correctly
+        params.localidadeServico = `%${localidadeServico}%`;  // Add wildcard for LIKE query
     }
 
     // Ensure no parameters are sent as undefined or null
     if (Object.keys(params).length === 0) {
+        console.log('No valid search parameters provided'); // Log if no parameters are valid
         return res.status(400).json({ error: 'No valid search parameters provided.' });
     }
+
+    console.log('Executing query:', query); // Log the final query being executed
+    console.log('With parameters:', params); // Log the parameters
 
     try {
         // Execute the query with parameters
         const results = await executeQuery(query, params);
+        console.log('Query results:', results); // Log the query results
         res.status(200).json(results.recordset);
     } catch (error) {
-        console.error('Error searching services:', error.message);
+        console.error('Error searching services:', error.message); // Log the error message
         res.status(500).json({ error: error.message });
     }
 });
+
 
 
 // Route to create a new Servico_Hospitalar
