@@ -38,12 +38,9 @@ router.get('/servicessearch', async (req, res) => {
         params.localidadeServico = `%${localidadeServico}%`;  // Add wildcard for LIKE query
     }
 
-    // Ensure that empty parameters (undefined or null) are not passed to the query
-    if (!params.servicoID) {
-        delete params.servicoID;
-    }
-    if (!params.localidadeServico) {
-        delete params.localidadeServico;
+    // Ensure no parameters are sent as undefined or null
+    if (Object.keys(params).length === 0) {
+        return res.status(400).json({ error: 'No valid search parameters provided.' });
     }
 
     try {
