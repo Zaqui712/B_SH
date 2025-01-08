@@ -6,9 +6,9 @@ const jwt = require('jsonwebtoken');
 
 // Enable CORS for the backend
 router.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type'],
+  origin: '*', // Allow requests from any origin (adjust this as needed for security)
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these HTTP methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allow Content-Type and Authorization headers
 }));
 
 // Helper function for database queries
