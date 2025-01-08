@@ -35,30 +35,40 @@ const verifyAdmin = async (req, res, next) => {
 router.post('/create', async (req, res) => {
   const { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos } = req.body;
 
+  console.log('Received request body:', req.body);
+
   const pool = await getPool();
   const transaction = pool.transaction();
 
   try {
     // Check if estadoID exists in Estado table
     const estadoCheckQuery = 'SELECT COUNT(*) AS estadoCount FROM SERVICOSDB.dbo.Estado WHERE estadoID = @estadoID';
+    console.log('Executing estado check query:', estadoCheckQuery, { estadoID });
     const estadoCheckResult = await pool.request()
       .input('estadoID', estadoID)
       .query(estadoCheckQuery);
 
+    console.log('Estado check result:', estadoCheckResult);
+
     // Ensure the query returns a result before checking
     if (estadoCheckResult.recordset.length === 0 || estadoCheckResult.recordset[0].estadoCount === 0) {
+      console.error(`estadoID ${estadoID} does not exist in Estado table`);
       return res.status(400).json({ error: `estadoID ${estadoID} does not exist in Estado table` });
     }
 
     // Start the transaction
+    console.log('Starting transaction...');
     await transaction.begin();
 
     // Insert into Requisicao table
     const requisicaoQuery = `
       INSERT INTO SERVICOSDB.dbo.Requisicao 
       (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
+      OUTPUT INSERTED.requisicaoID
       VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega)
     `;
+    console.log('Executing requisicao insert query:', requisicaoQuery, { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega });
+
     const requisicaoResult = await transaction.request()
       .input('estadoID', estadoID)
       .input('profissionalID', profissionalID)
@@ -69,15 +79,20 @@ router.post('/create', async (req, res) => {
       .input('dataEntrega', dataEntrega || null)
       .query(requisicaoQuery);
 
+    console.log('Requisicao insert result:', requisicaoResult);
+
     // Ensure requisicaoID is returned correctly
     if (!requisicaoResult.recordset || requisicaoResult.recordset.length === 0) {
+      console.error('Requisicao insert failed, no ID returned.');
       throw new Error('Failed to create requisicao.');
     }
 
     const requisicaoID = requisicaoResult.recordset[0].requisicaoID;
+    console.log('Created requisicaoID:', requisicaoID);
 
     // Ensure 'medicamentos' is defined and an array, and check if it has at least one element
     if (Array.isArray(medicamentos) && medicamentos.length > 0) {
+      console.log('Processing medicamentos:', medicamentos);
       for (const medicamento of medicamentos) {
         const { medicamentoID, quantidade } = medicamento;
 
@@ -87,11 +102,15 @@ router.post('/create', async (req, res) => {
             INSERT INTO SERVICOSDB.dbo.Medicamento_Requisicao (medicamentoID, requisicaoID, quantidade)
             VALUES (@medicamentoID, @requisicaoID, @quantidade)
           `;
+          console.log('Executing medicamento insert query:', medicamentoQuery, { medicamentoID, requisicaoID, quantidade });
+
           await transaction.request()
             .input('medicamentoID', medicamentoID)
             .input('requisicaoID', requisicaoID)
             .input('quantidade', quantidade)
             .query(medicamentoQuery);
+
+          console.log('Inserted medicamento:', { medicamentoID, quantidade });
         } else {
           console.error('Invalid medicamento data:', medicamento);
         }
@@ -101,19 +120,23 @@ router.post('/create', async (req, res) => {
     }
 
     // Commit the transaction
+    console.log('Committing transaction...');
     await transaction.commit();
 
     // Respond with success
+    console.log('Request created successfully:', { requisicaoID });
     res.status(201).json({ message: 'Request created successfully', requisicaoID });
   } catch (error) {
     // Rollback the transaction in case of error
+    console.error('Rolling back transaction due to error...');
     await transaction.rollback();
     console.error('Error creating request:', error.message);
 
     // Respond with error
-    res.status(500).json({ error: 'Error creating request' });
+    res.status(500).json({ error: 'Error creating request', details: error.message });
   }
 });
+
 
 
 
