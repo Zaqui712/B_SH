@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const router = express.Router();
 const { getPool } = require('../../db'); // Database connection pool
+const jwt = require('jsonwebtoken');
 
 // Enable CORS for the backend
 router.use(cors({
@@ -23,18 +24,27 @@ const executeQuery = async (query, params = []) => {
 
 // Middleware to verify if the user is an administrator
 const verifyAdmin = async (req, res, next) => {
-  const { adminID } = req.body;
+  // Extract the token from Authorization header
+  const token = req.headers['authorization']?.split(' ')[1]; // Bearer <token>
+  
+  if (!token) {
+    return res.status(403).send('Access denied. No token provided.');
+  }
+
   try {
-    const pool = await getPool();
-    const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.dbo.Credenciais WHERE credenciaisID = @adminID';
-    const result = await pool.request().input('adminID', adminID).query(query);
-    if (result.recordset.length > 0 && result.recordset[0].utilizadorAdministrador) {
+    // Decode and verify the JWT token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    
+    // Check if the user is an admin
+    if (decoded.isAdmin) {
+      // If admin, pass control to the next middleware/route handler
+      req.user = decoded; // Attach decoded user info to request for further use
       next();
     } else {
-      res.status(403).send('Access denied. Only administrators can perform this action.');
+      return res.status(403).send('Access denied. Only administrators can perform this action.');
     }
   } catch (error) {
-    res.status(400).send(error.message);
+    return res.status(400).send('Invalid token.');
   }
 };
 
