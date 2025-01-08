@@ -69,20 +69,28 @@ router.post('/create', async (req, res) => {
     // Get the requisicaoID from the result
     const requisicaoID = requisicaoResult.recordset[0].requisicaoID;
 
-    // Insert into Medicamento_Requisicao table
-    if (medicamentos && medicamentos.length > 0) {
+    // Ensure 'medicamentos' is defined and an array, and check if it has at least one element
+    if (Array.isArray(medicamentos) && medicamentos.length > 0) {
       for (const medicamento of medicamentos) {
         const { medicamentoID, quantidade } = medicamento;
-        const medicamentoQuery = `
-          INSERT INTO SERVICOSDB.dbo.Medicamento_Requisicao (medicamentoID, requisicaoID, quantidade)
-          VALUES (@medicamentoID, @requisicaoID, @quantidade)
-        `;
-        await transaction.request()
-          .input('medicamentoID', medicamentoID)
-          .input('requisicaoID', requisicaoID)
-          .input('quantidade', quantidade)
-          .query(medicamentoQuery);
+
+        // Ensure medicamentoID and quantidade are present and valid
+        if (medicamentoID && quantidade) {
+          const medicamentoQuery = `
+            INSERT INTO SERVICOSDB.dbo.Medicamento_Requisicao (medicamentoID, requisicaoID, quantidade)
+            VALUES (@medicamentoID, @requisicaoID, @quantidade)
+          `;
+          await transaction.request()
+            .input('medicamentoID', medicamentoID)
+            .input('requisicaoID', requisicaoID)
+            .input('quantidade', quantidade)
+            .query(medicamentoQuery);
+        } else {
+          console.error('Invalid medicamento data:', medicamento);
+        }
       }
+    } else {
+      console.warn('Medicamentos array is empty or not defined');
     }
 
     // Commit the transaction
@@ -99,6 +107,7 @@ router.post('/create', async (req, res) => {
     res.status(500).json({ error: 'Error creating request' });
   }
 });
+
 
 
 // READ
