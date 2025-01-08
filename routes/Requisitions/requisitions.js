@@ -141,23 +141,28 @@ router.post('/create', async (req, res) => {
 // Fetch all requests with medication details
 router.get('/all', async (req, res) => {
   try {
-    const pool = await getPool(); // Establish a connection to the SQL Server
+    const pool = await getPool(); // Establish the database connection
     const query = `
-      SELECT req.*, 
-             mr.medicamentoID, 
-             mr.quantidade, 
-             med.nomeMedicamento
-      FROM SERVICOSDB.dbo.Requisicao req
-      LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
-      LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
+      SELECT 
+          R.*,
+          P.*,
+          SH.*
+      FROM 
+          SERVICOSDB.dbo.Requisicao R
+      JOIN 
+          SERVICOSDB.dbo.Profissional_De_Saude P ON R.profissionalID = P.profissionalID
+      JOIN 
+          SERVICOSDB.dbo.Servico_Hospitalar SH ON P.servicoID = SH.servicoID
     `;
+
     const result = await pool.request().query(query); // Execute the SQL query
-    res.status(200).json(result.recordset); // Send the fetched data as JSON
+    res.status(200).json(result.recordset); // Send the query result as a JSON response
   } catch (error) {
-    console.error('Error listing requests:', error.message); // Log any errors
-    res.status(500).json({ error: 'Error listing requests' }); // Send a 500 status with an error message
+    console.error('Error fetching requisitions:', error.message);
+    res.status(500).json({ error: 'Error fetching requisitions' });
   }
 });
+
 
 
 // Fetch pending approval requests with medication details
