@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require('cors'); // Import cors
+const cors = require('cors');
 const router = express.Router();
 const { getPool } = require('../../db'); // Database connection pool
 
@@ -54,7 +54,6 @@ router.get('/user/admin-status', async (req, res) => {
   }
 });
 
-
 // CREATE
 // Route to add a new medication
 router.post('/new', verifyAdmin, async (req, res) => {
@@ -82,9 +81,8 @@ router.post('/new', verifyAdmin, async (req, res) => {
 // Route to list all medications
 router.get('/all', async (req, res) => {
   const query = `
-    SELECT m.medicamentoid, m.nomeMedicamento, tm.descricao, msh.quantidadedisponivel
+    SELECT m.medicamentoid, m.nomeMedicamento, m.tipoMedicamento, msh.quantidadedisponivel
     FROM SERVICOSDB.dbo.Medicamento m
-    JOIN SERVICOSDB.dbo.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
     JOIN SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
   `;
   try {
@@ -104,9 +102,8 @@ const searchProduct = async (req, res) => {
   }
 
   const sqlQuery = `
-    SELECT m.medicamentoid, m.nomeMedicamento, tm.descricao, msh.quantidadedisponivel
+    SELECT m.medicamentoid, m.nomeMedicamento, m.tipoMedicamento, msh.quantidadedisponivel
     FROM SERVICOSDB.dbo.Medicamento m
-    JOIN SERVICOSDB.dbo.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
     JOIN SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
     WHERE m.nomeMedicamento LIKE @query
   `;
