@@ -12,10 +12,17 @@ router.use(cors({
 }));
 
 // Helper function for database queries
-const executeQuery = async (query, params = []) => {
+const executeQuery = async (query, params = {}) => {
   const pool = await getPool();
   try {
-    const result = await pool.request().query(query, params);
+    const request = pool.request();
+    
+    // Add parameters to the request using .input()
+    for (const param in params) {
+      request.input(param, params[param]);
+    }
+    
+    const result = await request.query(query);
     return result.recordset;
   } catch (error) {
     throw new Error(`Database error: ${error.message}`);
