@@ -74,9 +74,9 @@ router.post('/new', verifyAdmin, async (req, res) => {
   }
 
   const query = `
-    INSERT INTO SERVICOSDB.dbo.Medicamento (nomeMedicamento, tipoMedicamento, dataValidade, lote)
-    VALUES (@nomeMedicamento, @tipoMedicamento, @dataValidade, @lote)
-  `;
+  INSERT INTO SERVICOSDB.dbo.Medicamento (nomeMedicamento, tipoMedicamento, dataValidade, lote)
+  VALUES (@nomeMedicamento, @tipoMedicamento, @dataValidade, @lote)
+	`;
 
   try {
     await executeQuery(query, { nomeMedicamento, tipoMedicamento, dataValidade, lote });
