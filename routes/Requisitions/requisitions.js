@@ -179,23 +179,24 @@ router.delete('/:requestID', async (req, res) => {
     `;
     await pool.request().input('requestID', requestID).query(deleteMedicamentoQuery);
 
-    // Delete the requisition
+    // Delete the requisition without OUTPUT clause temporarily
     const deleteRequestQuery = `
       DELETE FROM SERVICOSDB.dbo.Requisicao
       WHERE requisicaoID = @requestID
-      OUTPUT DELETED.*
     `;
     const result = await pool.request().input('requestID', requestID).query(deleteRequestQuery);
 
-    if (result.recordset.length === 0) {
+    if (result.rowsAffected[0] === 0) {
       return res.status(404).json({ message: 'Request not found.' });
     }
 
-    res.status(200).json({ message: 'Request deleted successfully.', request: result.recordset[0] });
+    res.status(200).json({ message: 'Request deleted successfully.' });
   } catch (error) {
     console.error('Error deleting request:', error.message);
     res.status(500).json({ error: 'Error deleting request' });
   }
 });
+
+
 
 module.exports = router;
