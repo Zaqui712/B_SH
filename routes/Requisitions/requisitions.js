@@ -35,8 +35,12 @@ const verifyAdmin = async (req, res, next) => {
 router.post('/create', async (req, res) => {
   const { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos } = req.body;
 
+  const pool = await getPool();
+  const transaction = pool.transaction();
+
   try {
-    const pool = await getPool();
+    // Start the transaction
+    await transaction.begin();
 
     // Insert into Requisicao table
     const requisicaoQuery = `
@@ -44,7 +48,7 @@ router.post('/create', async (req, res) => {
       VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega)
       OUTPUT INSERTED.requisicaoID
     `;
-    const requisicaoResult = await pool.request()
+    const requisicaoResult = await transaction.request()
       .input('estadoID', estadoID)
       .input('profissionalID', profissionalID)
       .input('adminID', adminID)
@@ -54,6 +58,7 @@ router.post('/create', async (req, res) => {
       .input('dataEntrega', dataEntrega || null)
       .query(requisicaoQuery);
 
+    // Get the requisicaoID from the result
     const requisicaoID = requisicaoResult.recordset[0].requisicaoID;
 
     // Insert into Medicamento_Requisicao table
@@ -64,7 +69,7 @@ router.post('/create', async (req, res) => {
           INSERT INTO SERVICOSDB.dbo.Medicamento_Requisicao (medicamentoID, requisicaoID, quantidade)
           VALUES (@medicamentoID, @requisicaoID, @quantidade)
         `;
-        await pool.request()
+        await transaction.request()
           .input('medicamentoID', medicamentoID)
           .input('requisicaoID', requisicaoID)
           .input('quantidade', quantidade)
@@ -72,9 +77,17 @@ router.post('/create', async (req, res) => {
       }
     }
 
+    // Commit the transaction
+    await transaction.commit();
+
+    // Respond with success
     res.status(201).json({ message: 'Request created successfully', requisicaoID });
   } catch (error) {
+    // Rollback the transaction in case of error
+    await transaction.rollback();
     console.error('Error creating request:', error.message);
+
+    // Respond with error
     res.status(500).json({ error: 'Error creating request' });
   }
 });

@@ -1,15 +1,18 @@
 const express = require('express');
-const cors = require('cors');
-const router = express.Router();
-const { getPool } = require('../../db'); // Database connection pool
+const cors = require('cors'); // Import cors
 const jwt = require('jsonwebtoken');
+const router = express.Router();
+const { getPool } = require('../../db'); // Updated path
 
-// Enable CORS for the backend
-router.use(cors({
-  origin: '*', // Allow requests from any origin (adjust this as needed for security)
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these HTTP methods
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allow Content-Type and Authorization headers
-}));
+// Enable CORS for all origins
+const corsOptions = {
+  origin: '*', // Allow all origins (you can restrict this to specific domains in production)
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+// Apply CORS middleware globally
+router.use(cors(corsOptions));
 
 // Helper function for database queries
 const executeQuery = async (query, params = {}) => {
@@ -55,149 +58,177 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
-// Route to check admin status
-router.get('/user/admin-status', async (req, res) => {
-  const { userID } = req.user; // Assuming userID is available in the request
-  try {
-    const query = `
-      SELECT utilizadorAdministrador 
-      FROM SERVICOSDB.dbo.Credenciais 
-      WHERE credenciaisID = @userID
-    `;
-    const result = await executeQuery(query, { userID });
-    res.status(200).json({ isAdmin: result[0]?.utilizadorAdministrador || false });
-  } catch (error) {
-    res.status(500).json({ message: 'Error verifying admin status', error: error.message });
-  }
-});
-
 // CREATE
-// Route to add a new medication
-router.post('/new', verifyAdmin, async (req, res) => {
-  const { nomeMedicamento, tipoMedicamento, dataValidade, lote } = req.body;
+// Route to create a new request with medication details (POST /api/request/create)
+router.post('/create', verifyAdmin, async (req, res) => {
+  const { estadoID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos } = req.body;
 
-  if (!nomeMedicamento || !tipoMedicamento || !dataValidade || !lote) {
-    return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
-  }
-
-  const query = `
-    INSERT INTO SERVICOSDB.dbo.Medicamento (nomeMedicamento, tipoMedicamento, dataValidade, lote)
-    VALUES (@nomeMedicamento, @tipoMedicamento, @dataValidade, @lote)
-  `;
+  const pool = await getPool();
+  const transaction = pool.transaction();
 
   try {
-    // Ensure parameters are passed correctly
-    await executeQuery(query, { nomeMedicamento, tipoMedicamento, dataValidade, lote });
-    res.status(201).json({ message: 'Medicamento criado com sucesso.' });
+    // Start the transaction
+    await transaction.begin();
+
+    // Use profissionalID from the user token if available
+    const profissionalID = req.user.profissionalID || req.body.profissionalID;
+
+    // If adminID is provided or if the user is an admin, use adminID, otherwise fallback to the user's adminID
+    const userAdminID = adminID || (req.user.isAdmin ? req.user.userID : null);
+
+    // Insert into Requisicao table
+    const requisicaoQuery = `
+      INSERT INTO SERVICOSDB.dbo.Requisicao (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
+      VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega)
+      OUTPUT INSERTED.requisicaoID
+    `;
+    const requisicaoResult = await transaction.request()
+      .input('estadoID', estadoID)
+      .input('profissionalID', profissionalID)
+      .input('adminID', userAdminID) // Use adminID if admin or profissionalID if not
+      .input('aprovadoPorAdministrador', aprovadoPorAdministrador || 0) // Default to not approved
+      .input('requisicaoCompleta', requisicaoCompleta || 0)
+      .input('dataRequisicao', dataRequisicao)
+      .input('dataEntrega', dataEntrega || null)
+      .query(requisicaoQuery);
+
+    // Get the requisicaoID from the result
+    const requisicaoID = requisicaoResult.recordset[0].requisicaoID;
+
+    // Insert into Medicamento_Requisicao table
+    if (medicamentos && medicamentos.length > 0) {
+      for (const medicamento of medicamentos) {
+        const { medicamentoID, quantidade } = medicamento;
+        const medicamentoQuery = `
+          INSERT INTO SERVICOSDB.dbo.Medicamento_Requisicao (medicamentoID, requisicaoID, quantidade)
+          VALUES (@medicamentoID, @requisicaoID, @quantidade)
+        `;
+        await transaction.request()
+          .input('medicamentoID', medicamentoID)
+          .input('requisicaoID', requisicaoID)
+          .input('quantidade', quantidade)
+          .query(medicamentoQuery);
+      }
+    }
+
+    // Commit the transaction
+    await transaction.commit();
+
+    // Respond with success
+    res.status(201).json({ message: 'Request created successfully', requisicaoID });
   } catch (error) {
-    console.error('Erro ao adicionar medicamento:', error.message);
-    res.status(500).json({ error: error.message });
+    // Rollback the transaction in case of error
+    await transaction.rollback();
+    console.error('Error creating request:', error.message);
+
+    // Respond with error
+    res.status(500).json({ error: 'Error creating request' });
   }
 });
-
 
 // READ
-// Route to list all medications
+// Fetch all requests with medication details
 router.get('/all', async (req, res) => {
-  const query = `
-    SELECT medicamentoid, nomeMedicamento, tipoMedicamento, dataValidade, lote
-    FROM SERVICOSDB.dbo.Medicamento
-  `;
   try {
-    const results = await executeQuery(query);
-    res.status(200).json(results);
+    const pool = await getPool();
+    const query = `
+      SELECT req.*, 
+             mr.medicamentoID, 
+             mr.quantidade, 
+             med.nomeMedicamento
+      FROM SERVICOSDB.dbo.Requisicao req
+      LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
+    `;
+    const result = await pool.request().query(query);
+    res.status(200).json(result.recordset);
   } catch (error) {
-    console.error('Error listing medications:', error.message);
-    res.status(500).json({ error: error.message });
+    console.error('Error listing requests:', error.message);
+    res.status(500).json({ error: 'Error listing requests' });
   }
 });
 
-
-// Function to search for a product
-const searchProduct = async (req, res) => {
-  const { query } = req.query; // Capture the query parameter
-  if (!query) {
-    return res.status(400).json({ message: 'Query parameter is required' });
-  }
-
-  const sqlQuery = `
-    SELECT m.medicamentoid, m.nomeMedicamento, m.tipoMedicamento, msh.quantidadedisponivel
-    FROM SERVICOSDB.dbo.Medicamento m
-    JOIN SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
-    WHERE m.nomeMedicamento LIKE @query
-  `;
-
+// Fetch pending approval requests with medication details
+router.get('/pending-approval', async (req, res) => {
   try {
-    const results = await executeQuery(sqlQuery, { query: `%${query}%` });
-    if (results.length > 0) {
-      console.log('Produtos encontrados:', results);
-      res.status(200).json(results);
-    } else {
-      res.status(404).json({ message: 'Nenhum produto encontrado com a consulta fornecida.' });
-    }
+    const pool = await getPool();
+    const query = `
+      SELECT req.*, 
+             pro.nomeProprio, 
+             pro.ultimoNome, 
+             mr.medicamentoID, 
+             mr.quantidade, 
+             med.nomeMedicamento
+      FROM SERVICOSDB.dbo.Requisicao req
+      JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
+      WHERE req.aprovadoPorAdministrador = 0
+    `;
+    const result = await pool.request().query(query);
+    res.status(200).json(result.recordset);
   } catch (error) {
-    console.error('Error searching product:', error.message);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching pending requests:', error.message);
+    res.status(500).json({ error: 'Error fetching pending requests' });
   }
-};
+});
 
-router.get('/search', searchProduct);
-
-// UPDATE
-// Route to update medication information
-router.put('/update/:medicamentoID', async (req, res) => {
-  const { medicamentoID } = req.params;
-  const { nomeMedicamento, tipoMedicamento, dataValidade, lote } = req.body;
-
-  if (!nomeMedicamento || !tipoMedicamento || !dataValidade || !lote) {
-    return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
-  }
-
-  const query = `
-    UPDATE SERVICOSDB.dbo.Medicamento
-    SET nomeMedicamento = @nomeMedicamento, tipoMedicamento = @tipoMedicamento, 
-        dataValidade = @dataValidade, lote = @lote
-    WHERE medicamentoID = @medicamentoID
-  `;
-
+// Fetch requests by health unit with medication details
+router.get('/list/:servicoID', async (req, res) => {
+  const { servicoID } = req.params;
   try {
-    const results = await executeQuery(query, { nomeMedicamento, tipoMedicamento, dataValidade, lote, medicamentoID });
-    if (results.length > 0) {
-      res.status(200).json({ message: 'Medicamento atualizado com sucesso.' });
-    } else {
-      res.status(404).json({ message: 'Medicamento não encontrado.' });
-    }
+    const pool = await getPool();
+    const query = `
+      SELECT req.*, 
+             pro.nomeProprio, 
+             pro.ultimoNome, 
+             mr.medicamentoID, 
+             mr.quantidade, 
+             med.nomeMedicamento
+      FROM SERVICOSDB.dbo.Requisicao req
+      JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
+      WHERE pro.servicoID = @servicoID
+    `;
+    const result = await pool.request().input('servicoID', servicoID).query(query);
+    res.status(200).json(result.recordset);
   } catch (error) {
-    console.error('Erro ao atualizar medicamento:', error.message);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching requests for health unit:', error.message);
+    res.status(500).json({ error: 'Error fetching requests for health unit' });
   }
 });
 
 // DELETE
-// Route to delete a medication
-router.delete('/delete/:medicamentoID', verifyAdmin, async (req, res) => {
-  const { medicamentoID } = req.params;
-
-  const checkQuery = `
-    SELECT * FROM SERVICOSDB.dbo.Medicamento WHERE medicamentoID = @medicamentoID
-  `;
+router.delete('/:requestID', async (req, res) => {
+  const { requestID } = req.params;
 
   try {
-    const checkResults = await executeQuery(checkQuery, { medicamentoID });
+    const pool = await getPool();
 
-    if (checkResults.length === 0) {
-      return res.status(404).json({ message: 'Medicamento não encontrado.' });
+    // Delete associated records in Medicamento_Requisicao
+    const deleteMedicamentoQuery = `
+      DELETE FROM SERVICOSDB.dbo.Medicamento_Requisicao
+      WHERE requisicaoID = @requestID
+    `;
+    await pool.request().input('requestID', requestID).query(deleteMedicamentoQuery);
+
+    // Delete the requisition
+    const deleteRequestQuery = `
+      DELETE FROM SERVICOSDB.dbo.Requisicao
+      WHERE requisicaoID = @requestID
+      OUTPUT DELETED.*
+    `;
+    const result = await pool.request().input('requestID', requestID).query(deleteRequestQuery);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ message: 'Request not found.' });
     }
 
-    const deleteQuery = `
-      DELETE FROM SERVICOSDB.dbo.Medicamento WHERE medicamentoID = @medicamentoID
-    `;
-    
-    await executeQuery(deleteQuery, { medicamentoID });
-    res.status(200).json({ message: 'Medicamento deletado com sucesso.' });
+    res.status(200).json({ message: 'Request deleted successfully.', request: result.recordset[0] });
   } catch (error) {
-    console.error('Erro ao deletar medicamento:', error.message);
-    res.status(500).json({ error: error.message });
+    console.error('Error deleting request:', error.message);
+    res.status(500).json({ error: 'Error deleting request' });
   }
 });
 
