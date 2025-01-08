@@ -58,21 +58,20 @@ router.get('/user/admin-status', async (req, res) => {
 // CREATE
 // Route to add a new medication
 router.post('/new', verifyAdmin, async (req, res) => {
-  const { nomeMedicamento, tipoID, descricao } = req.body;
+  const { nomeMedicamento, tipoMedicamento, descricao } = req.body;
 
-  if (!nomeMedicamento || !tipoID || !descricao) {
+  if (!nomeMedicamento || !tipoMedicamento || !descricao) {
     return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
   }
 
   const query = `
-    INSERT INTO SERVICOSDB.dbo.Medicamento (nomeMedicamento, tipoID, descricao)
-    VALUES (@nomeMedicamento, @tipoID, @descricao)
-    OUTPUT INSERTED.*
+    INSERT INTO SERVICOSDB.dbo.Medicamento (nomeMedicamento, tipoMedicamento, descricao)
+    VALUES (@nomeMedicamento, @tipoMedicamento, @descricao)
   `;
 
   try {
-    const results = await executeQuery(query, { nomeMedicamento, tipoID, descricao });
-    res.status(201).json({ message: 'Medicamento criado com sucesso.', medicamento: results[0] });
+    await executeQuery(query, { nomeMedicamento, tipoMedicamento, descricao });
+    res.status(201).json({ message: 'Medicamento criado com sucesso.' });
   } catch (error) {
     console.error('Erro ao adicionar medicamento:', error.message);
     res.status(500).json({ error: error.message });
@@ -132,23 +131,22 @@ router.get('/search', searchProduct);
 // Route to update medication information
 router.put('/update/:medicamentoID', async (req, res) => {
   const { medicamentoID } = req.params;
-  const { nomeMedicamento, tipoID, descricao } = req.body;
+  const { nomeMedicamento, tipoMedicamento, descricao } = req.body;
 
-  if (!nomeMedicamento || !tipoID || !descricao) {
+  if (!nomeMedicamento || !tipoMedicamento || !descricao) {
     return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
   }
 
   const query = `
     UPDATE SERVICOSDB.dbo.Medicamento
-    SET nomeMedicamento = @nomeMedicamento, tipoID = @tipoID, descricao = @descricao
+    SET nomeMedicamento = @nomeMedicamento, tipoMedicamento = @tipoMedicamento, descricao = @descricao
     WHERE medicamentoID = @medicamentoID
-    OUTPUT INSERTED.*
   `;
 
   try {
-    const results = await executeQuery(query, { nomeMedicamento, tipoID, descricao, medicamentoID });
+    const results = await executeQuery(query, { nomeMedicamento, tipoMedicamento, descricao, medicamentoID });
     if (results.length > 0) {
-      res.status(200).json({ message: 'Medicamento atualizado com sucesso.', medicamento: results[0] });
+      res.status(200).json({ message: 'Medicamento atualizado com sucesso.' });
     } else {
       res.status(404).json({ message: 'Medicamento não encontrado.' });
     }
@@ -163,19 +161,23 @@ router.put('/update/:medicamentoID', async (req, res) => {
 router.delete('/delete/:medicamentoID', verifyAdmin, async (req, res) => {
   const { medicamentoID } = req.params;
 
-  const query = `
-    DELETE FROM SERVICOSDB.dbo.Medicamento
-    WHERE medicamentoID = @medicamentoID
-    OUTPUT DELETED.*
+  const checkQuery = `
+    SELECT * FROM SERVICOSDB.dbo.Medicamento WHERE medicamentoID = @medicamentoID
   `;
 
   try {
-    const results = await executeQuery(query, { medicamentoID });
-    if (results.length > 0) {
-      res.status(200).json({ message: 'Medicamento deletado com sucesso.', medicamento: results[0] });
-    } else {
-      res.status(404).json({ message: 'Medicamento não encontrado.' });
+    const checkResults = await executeQuery(checkQuery, { medicamentoID });
+
+    if (checkResults.length === 0) {
+      return res.status(404).json({ message: 'Medicamento não encontrado.' });
     }
+
+    const deleteQuery = `
+      DELETE FROM SERVICOSDB.dbo.Medicamento WHERE medicamentoID = @medicamentoID
+    `;
+    
+    await executeQuery(deleteQuery, { medicamentoID });
+    res.status(200).json({ message: 'Medicamento deletado com sucesso.' });
   } catch (error) {
     console.error('Erro ao deletar medicamento:', error.message);
     res.status(500).json({ error: error.message });
