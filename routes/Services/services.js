@@ -94,23 +94,34 @@ router.put('/servico/:id', async (req, res) => {
     const { id } = req.params;
     const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
     try {
-        const query = `
-		UPDATE SERVICOSDB.dbo.Servico_Hospitalar
-		SET localidadeServico = @localidadeServico, nomeServico = @nomeServico, descServico = @descServico, servicoDisponivel24horas = @servicoDisponivel24horas
-		WHERE servicoID = @id
-		OUTPUT INSERTED.servicoID, INSERTED.localidadeServico, INSERTED.nomeServico, INSERTED.descServico, INSERTED.servicoDisponivel24horas;
-		`;
+        // Update the record
+        const updateQuery = `
+            UPDATE SERVICOSDB.dbo.Servico_Hospitalar
+            SET localidadeServico = @localidadeServico, nomeServico = @nomeServico, descServico = @descServico, servicoDisponivel24horas = @servicoDisponivel24horas
+            WHERE servicoID = @id;
+        `;
         const values = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas, id };
-        const result = await executeQuery(query, values);
-        if (result.recordset.length === 0) {
+        const updateResult = await executeQuery(updateQuery, values);
+
+        // Check if the update affected any rows
+        if (updateResult.rowsAffected[0] === 0) {
             return res.status(404).json({ error: 'Servico_Hospitalar not found' });
         }
-        res.status(200).json(result.recordset[0]);
+
+        // Fetch the updated record
+        const selectQuery = `
+            SELECT servicoID, localidadeServico, nomeServico, descServico, servicoDisponivel24horas
+            FROM SERVICOSDB.dbo.Servico_Hospitalar
+            WHERE servicoID = @id;
+        `;
+        const updatedRecord = await executeQuery(selectQuery, { id });
+        res.status(200).json(updatedRecord.recordset[0]);
     } catch (error) {
         console.error('Error updating Servico_Hospitalar:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
+
 
 // Route to delete a Servico_Hospitalar by ID
 router.delete('/servico/:id', async (req, res) => {
