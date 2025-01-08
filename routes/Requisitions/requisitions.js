@@ -44,19 +44,19 @@ router.post('/create', async (req, res) => {
 
     // Insert into Requisicao table
     const requisicaoQuery = `
-      INSERT INTO SERVICOSDB.dbo.Requisicao (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
-      VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega)
-      OUTPUT INSERTED.requisicaoID
-    `;
-    const requisicaoResult = await transaction.request()
-      .input('estadoID', estadoID)
-      .input('profissionalID', profissionalID)
-      .input('adminID', adminID)
-      .input('aprovadoPorAdministrador', aprovadoPorAdministrador || 0)
-      .input('requisicaoCompleta', requisicaoCompleta || 0)
-      .input('dataRequisicao', dataRequisicao)
-      .input('dataEntrega', dataEntrega || null)
-      .query(requisicaoQuery);
+  INSERT INTO SERVICOSDB.dbo.Requisicao 
+  (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
+  VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega)
+`;
+const requisicaoResult = await transaction.request()
+  .input('estadoID', estadoID)
+  .input('profissionalID', profissionalID)
+  .input('adminID', adminID)
+  .input('aprovadoPorAdministrador', aprovadoPorAdministrador || 0)
+  .input('requisicaoCompleta', requisicaoCompleta || 0)
+  .input('dataRequisicao', dataRequisicao)
+  .input('dataEntrega', dataEntrega || null)
+  .query(requisicaoQuery);
 
     // Get the requisicaoID from the result
     const requisicaoID = requisicaoResult.recordset[0].requisicaoID;
