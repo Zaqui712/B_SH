@@ -1,0 +1,12 @@
+estad-- Insert placeholder states into the Estado table
+INSERT INTO SERVICOSDB.dbo.Estado (descricao)
+VALUES 
+    ('Aguarda Aprovacao'),          -- Estado 1: Pending Approval
+    ('Aprovacao'),                  -- Estado 2: Approved
+    ('Rejeitado'),                  -- Estado 3: Rejected
+    ('Em progresso'),               -- Estado 4: In Progress
+    ('Enviado para fornecedor'),   -- Estado 5: Sent to Supplier
+    ('Enviado para servico'),      -- Estado 6: Sent to Service
+    ('Aguarda entrada'),           -- Estado 7: Awaiting Entry
+    ('Completo'),                  -- Estado 8: Completed
+    ('Cancelado');                 -- Estado 9: Cancelled

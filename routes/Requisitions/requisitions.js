@@ -30,8 +30,6 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
-// CREATE
-// Route to create a new request with medication details (POST /api/request/create)
 router.post('/create', async (req, res) => {
   const { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos } = req.body;
 
@@ -39,24 +37,34 @@ router.post('/create', async (req, res) => {
   const transaction = pool.transaction();
 
   try {
+    // Check if estadoID exists in Estado table
+    const estadoCheckQuery = 'SELECT COUNT(*) AS estadoCount FROM SERVICOSDB.dbo.Estado WHERE estadoID = @estadoID';
+    const estadoCheckResult = await pool.request()
+      .input('estadoID', estadoID)
+      .query(estadoCheckQuery);
+
+    if (estadoCheckResult.recordset[0].estadoCount === 0) {
+      return res.status(400).json({ error: `estadoID ${estadoID} does not exist in Estado table` });
+    }
+
     // Start the transaction
     await transaction.begin();
 
     // Insert into Requisicao table
     const requisicaoQuery = `
-  INSERT INTO SERVICOSDB.dbo.Requisicao 
-  (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
-  VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega)
-`;
-const requisicaoResult = await transaction.request()
-  .input('estadoID', estadoID)
-  .input('profissionalID', profissionalID)
-  .input('adminID', adminID)
-  .input('aprovadoPorAdministrador', aprovadoPorAdministrador || 0)
-  .input('requisicaoCompleta', requisicaoCompleta || 0)
-  .input('dataRequisicao', dataRequisicao)
-  .input('dataEntrega', dataEntrega || null)
-  .query(requisicaoQuery);
+      INSERT INTO SERVICOSDB.dbo.Requisicao 
+      (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
+      VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega)
+    `;
+    const requisicaoResult = await transaction.request()
+      .input('estadoID', estadoID)
+      .input('profissionalID', profissionalID)
+      .input('adminID', adminID)
+      .input('aprovadoPorAdministrador', aprovadoPorAdministrador || 0)
+      .input('requisicaoCompleta', requisicaoCompleta || 0)
+      .input('dataRequisicao', dataRequisicao)
+      .input('dataEntrega', dataEntrega || null)
+      .query(requisicaoQuery);
 
     // Get the requisicaoID from the result
     const requisicaoID = requisicaoResult.recordset[0].requisicaoID;
@@ -91,6 +99,7 @@ const requisicaoResult = await transaction.request()
     res.status(500).json({ error: 'Error creating request' });
   }
 });
+
 
 // READ
 // Fetch all requests with medication details
