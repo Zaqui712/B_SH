@@ -57,19 +57,19 @@ router.get('/user/admin-status', async (req, res) => {
 // CREATE
 // Route to add a new medication
 router.post('/new', verifyAdmin, async (req, res) => {
-  const { nomeMedicamento, tipoMedicamento, descricao } = req.body;
+  const { nomeMedicamento, tipoMedicamento, dataValidade, lote } = req.body;
 
-  if (!nomeMedicamento || !tipoMedicamento || !descricao) {
+  if (!nomeMedicamento || !tipoMedicamento || !dataValidade || !lote) {
     return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
   }
 
   const query = `
-    INSERT INTO SERVICOSDB.dbo.Medicamento (nomeMedicamento, tipoMedicamento, descricao)
-    VALUES (@nomeMedicamento, @tipoMedicamento, @descricao)
+    INSERT INTO SERVICOSDB.dbo.Medicamento (nomeMedicamento, tipoMedicamento, dataValidade, lote)
+    VALUES (@nomeMedicamento, @tipoMedicamento, @dataValidade, @lote)
   `;
 
   try {
-    await executeQuery(query, { nomeMedicamento, tipoMedicamento, descricao });
+    await executeQuery(query, { nomeMedicamento, tipoMedicamento, dataValidade, lote });
     res.status(201).json({ message: 'Medicamento criado com sucesso.' });
   } catch (error) {
     console.error('Erro ao adicionar medicamento:', error.message);
@@ -77,11 +77,12 @@ router.post('/new', verifyAdmin, async (req, res) => {
   }
 });
 
+
 // READ
-// Route to list all medications (only stock from Medicamento table)
+// Route to list all medications
 router.get('/all', async (req, res) => {
   const query = `
-    SELECT medicamentoid, nomeMedicamento, tipoMedicamento, descricao
+    SELECT medicamentoid, nomeMedicamento, tipoMedicamento, dataValidade, lote
     FROM SERVICOSDB.dbo.Medicamento
   `;
   try {
@@ -92,6 +93,7 @@ router.get('/all', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Function to search for a product
 const searchProduct = async (req, res) => {
@@ -127,20 +129,21 @@ router.get('/search', searchProduct);
 // Route to update medication information
 router.put('/update/:medicamentoID', async (req, res) => {
   const { medicamentoID } = req.params;
-  const { nomeMedicamento, tipoMedicamento, descricao } = req.body;
+  const { nomeMedicamento, tipoMedicamento, dataValidade, lote } = req.body;
 
-  if (!nomeMedicamento || !tipoMedicamento || !descricao) {
+  if (!nomeMedicamento || !tipoMedicamento || !dataValidade || !lote) {
     return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
   }
 
   const query = `
     UPDATE SERVICOSDB.dbo.Medicamento
-    SET nomeMedicamento = @nomeMedicamento, tipoMedicamento = @tipoMedicamento, descricao = @descricao
+    SET nomeMedicamento = @nomeMedicamento, tipoMedicamento = @tipoMedicamento, 
+        dataValidade = @dataValidade, lote = @lote
     WHERE medicamentoID = @medicamentoID
   `;
 
   try {
-    const results = await executeQuery(query, { nomeMedicamento, tipoMedicamento, descricao, medicamentoID });
+    const results = await executeQuery(query, { nomeMedicamento, tipoMedicamento, dataValidade, lote, medicamentoID });
     if (results.length > 0) {
       res.status(200).json({ message: 'Medicamento atualizado com sucesso.' });
     } else {

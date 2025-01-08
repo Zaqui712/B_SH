@@ -73,10 +73,10 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Medicamento')
 BEGIN
     CREATE TABLE Medicamento (
         medicamentoID INT IDENTITY(1,1) PRIMARY KEY,
-        tipoID INT NOT NULL,
         nomeMedicamento VARCHAR(128),
         dataValidade DATE,
-        lote VARCHAR(20)
+        lote VARCHAR(20),
+		tipoMedicamento VARCHAR(255)
     );
 END;
 
@@ -92,15 +92,6 @@ BEGIN
         requisicaoCompleta BIT,
         dataRequisicao DATE,
         dataEntrega DATE
-    );
-END;
-
--- Create Tipo_Medicamento Table
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Tipo_Medicamento')
-BEGIN
-    CREATE TABLE Tipo_Medicamento (
-        tipoID INT IDENTITY(1,1) PRIMARY KEY,
-        descricao VARCHAR(128)
     );
 END;
 
@@ -216,10 +207,6 @@ END;
 -- ========================================
 
 -- Add Foreign Key Constraints
--- Add FK for Medicamento table
-ALTER TABLE Medicamento
-    ADD CONSTRAINT FK_Medicamento_Tipo FOREIGN KEY (tipoID) REFERENCES Tipo_Medicamento (tipoID);
-
 -- Add FK for Requisicao table
 ALTER TABLE Requisicao
     ADD CONSTRAINT FK_Requisicao_Estado FOREIGN KEY (estadoID) REFERENCES Estado (estadoID);
@@ -267,65 +254,6 @@ ALTER TABLE Requisicao
 -- Add FK for Profissional_De_Saude table
 ALTER TABLE Profissional_De_Saude
     ADD CONSTRAINT FK_Profissional_Tipo FOREIGN KEY (tipoID) REFERENCES Tipo_Profissional (tipoID);
-
--- ========================================
--- SECTION 3: MODIFY TABLES
--- ========================================
-
--- Step 1: Remove Foreign Key Constraint (if exists)
-IF EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_Medicamento_Tipo')
-BEGIN
-    ALTER TABLE Medicamento DROP CONSTRAINT FK_Medicamento_Tipo;
-END;
-
--- Step 2: Drop Tipo_Medicamento Table (if exists)
-IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Tipo_Medicamento')
-BEGIN
-    DROP TABLE Tipo_Medicamento;
-END;
-
--- Step 3: Modify Medicamento Table (Drop tipoID, Add tipoMedicamento)
-IF EXISTS (SELECT * FROM sys.columns WHERE name = 'tipoID' AND object_id = OBJECT_ID('Medicamento'))
-BEGIN
-    ALTER TABLE Medicamento DROP COLUMN tipoID;
-END;
-
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE name = 'tipoMedicamento' AND object_id = OBJECT_ID('Medicamento'))
-BEGIN
-    ALTER TABLE Medicamento ADD tipoMedicamento VARCHAR(128);
-END;
-
--- ========================================
--- SECTION 3: MODIFY TABLES
--- ========================================
-
--- Step 1: Remove Foreign Key Constraint (if exists)
-IF EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_Medicamento_Tipo')
-BEGIN
-    ALTER TABLE Medicamento DROP CONSTRAINT FK_Medicamento_Tipo;
-END;
-
--- Step 2: Drop Tipo_Medicamento Table (if exists)
-IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Tipo_Medicamento')
-BEGIN
-    DROP TABLE Tipo_Medicamento;
-END;
-
--- Step 3: Modify Medicamento Table (Drop tipoID, Add tipoMedicamento)
-IF EXISTS (SELECT * FROM sys.columns WHERE name = 'tipoID' AND object_id = OBJECT_ID('Medicamento'))
-BEGIN
-    ALTER TABLE Medicamento DROP COLUMN tipoID;
-END;
-
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE name = 'tipoMedicamento' AND object_id = OBJECT_ID('Medicamento'))
-BEGIN
-    ALTER TABLE Medicamento ADD tipoMedicamento VARCHAR(128);
-END;
-
--- ========================================
--- END OF SCRIPT
--- ========================================
-
 
 -- ========================================
 -- END OF SCRIPT
