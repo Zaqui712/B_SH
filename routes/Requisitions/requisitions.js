@@ -20,12 +20,14 @@ const verifyAdmin = async (req, res, next) => {
     const pool = await getPool();
     const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.dbo.Credenciais WHERE credenciaisID = @adminID';
     const result = await pool.request().input('adminID', adminID).query(query);
+
     if (result.recordset.length > 0 && result.recordset[0].utilizadorAdministrador) {
       next();
     } else {
       res.status(403).send('Access denied. Only administrators can approve requests.');
     }
   } catch (error) {
+    console.error('Error verifying admin:', error.message);
     res.status(400).send(error.message);
   }
 };
@@ -43,7 +45,8 @@ router.post('/create', async (req, res) => {
       .input('estadoID', estadoID)
       .query(estadoCheckQuery);
 
-    if (estadoCheckResult.recordset[0].estadoCount === 0) {
+    // Ensure the query returns a result before checking
+    if (estadoCheckResult.recordset.length === 0 || estadoCheckResult.recordset[0].estadoCount === 0) {
       return res.status(400).json({ error: `estadoID ${estadoID} does not exist in Estado table` });
     }
 
@@ -66,7 +69,11 @@ router.post('/create', async (req, res) => {
       .input('dataEntrega', dataEntrega || null)
       .query(requisicaoQuery);
 
-    // Get the requisicaoID from the result
+    // Ensure requisicaoID is returned correctly
+    if (!requisicaoResult.recordset || requisicaoResult.recordset.length === 0) {
+      throw new Error('Failed to create requisicao.');
+    }
+
     const requisicaoID = requisicaoResult.recordset[0].requisicaoID;
 
     // Ensure 'medicamentos' is defined and an array, and check if it has at least one element
