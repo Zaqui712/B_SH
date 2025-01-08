@@ -6,7 +6,7 @@ const { getPool } = require('../../db'); // Updated path
 // Enable CORS for all origins
 const corsOptions = {
   origin: '*', // Allow all origins (you can restrict this to specific domains in production)
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
@@ -31,133 +31,142 @@ const verifyAdmin = async (req, res, next) => {
 };
 
 // CREATE
-// Route to create a new request (POST /api/request/create)
+// Route to create a new request with medication details (POST /api/request/create)
 router.post('/create', async (req, res) => {
-  const { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega } = req.body;
+  const { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos } = req.body;
+
   try {
     const pool = await getPool();
-    const query = `
+
+    // Insert into Requisicao table
+    const requisicaoQuery = `
       INSERT INTO SERVICOSDB.dbo.Requisicao (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
       VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega)
-      OUTPUT INSERTED.*
+      OUTPUT INSERTED.requisicaoID
     `;
-    const result = await pool.request()
+    const requisicaoResult = await pool.request()
       .input('estadoID', estadoID)
       .input('profissionalID', profissionalID)
       .input('adminID', adminID)
-      .input('aprovadoPorAdministrador', aprovadoPorAdministrador)
-      .input('requisicaoCompleta', requisicaoCompleta)
+      .input('aprovadoPorAdministrador', aprovadoPorAdministrador || 0)
+      .input('requisicaoCompleta', requisicaoCompleta || 0)
       .input('dataRequisicao', dataRequisicao)
-      .input('dataEntrega', dataEntrega)
-      .query(query);
-    res.status(201).send('Request created successfully');
+      .input('dataEntrega', dataEntrega || null)
+      .query(requisicaoQuery);
+
+    const requisicaoID = requisicaoResult.recordset[0].requisicaoID;
+
+    // Insert into Medicamento_Requisicao table
+    if (medicamentos && medicamentos.length > 0) {
+      for (const medicamento of medicamentos) {
+        const { medicamentoID, quantidade } = medicamento;
+        const medicamentoQuery = `
+          INSERT INTO SERVICOSDB.dbo.Medicamento_Requisicao (medicamentoID, requisicaoID, quantidade)
+          VALUES (@medicamentoID, @requisicaoID, @quantidade)
+        `;
+        await pool.request()
+          .input('medicamentoID', medicamentoID)
+          .input('requisicaoID', requisicaoID)
+          .input('quantidade', quantidade)
+          .query(medicamentoQuery);
+      }
+    }
+
+    res.status(201).json({ message: 'Request created successfully', requisicaoID });
   } catch (error) {
-    res.status(400).send(error.message);
+    console.error('Error creating request:', error.message);
+    res.status(500).json({ error: 'Error creating request' });
   }
 });
 
 // READ
-// Route to list all requests (GET /api/request/)
+// Fetch all requests with medication details
 router.get('/all', async (req, res) => {
   try {
     const pool = await getPool();
-    const query = `SELECT * FROM SERVICOSDB.dbo.Requisicao`; // Fetch all requests
+    const query = `
+      SELECT req.*, 
+             mr.medicamentoID, 
+             mr.quantidade, 
+             med.nomeMedicamento
+      FROM SERVICOSDB.dbo.Requisicao req
+      LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
+    `;
     const result = await pool.request().query(query);
-
-    if (result.recordset.length > 0) {
-      res.status(200).json(result.recordset);
-    } else {
-      res.status(200).json({ message: 'No requests found.' });
-    }
+    res.status(200).json(result.recordset);
   } catch (error) {
     console.error('Error listing requests:', error.message);
-    res.status(500).send('Error listing requests');
+    res.status(500).json({ error: 'Error listing requests' });
   }
 });
 
-// Route to list pending approval requests (GET /api/request/pending-approval)
+// Fetch pending approval requests with medication details
 router.get('/pending-approval', async (req, res) => {
   try {
     const pool = await getPool();
     const query = `
-      SELECT req.*, pro.nomeProprio, pro.ultimoNome 
+      SELECT req.*, 
+             pro.nomeProprio, 
+             pro.ultimoNome, 
+             mr.medicamentoID, 
+             mr.quantidade, 
+             med.nomeMedicamento
       FROM SERVICOSDB.dbo.Requisicao req
       JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
       WHERE req.aprovadoPorAdministrador = 0
     `;
     const result = await pool.request().query(query);
-
-    if (result.recordset.length > 0) {
-      console.log('Pending approval requests:');
-      result.recordset.forEach((row) => {
-        console.log(`- ID: ${row.requisicaoID}, Name: ${row.nomeProprio} ${row.ultimoNome}, Request Date: ${row.dataRequisicao}`);
-      });
-      res.status(200).json(result.recordset);
-    } else {
-      console.log('No pending approval requests.');
-      res.status(200).json({ message: 'No pending approval requests.' });
-    }
+    res.status(200).json(result.recordset);
   } catch (error) {
-    console.error('Error checking pending requests:', error.message);
-    res.status(500).send('Error checking pending requests');
+    console.error('Error fetching pending requests:', error.message);
+    res.status(500).json({ error: 'Error fetching pending requests' });
   }
 });
 
-// Route to list all requests from a specific health unit (GET /api/request/list/:servicoID)
+// Fetch requests by health unit with medication details
 router.get('/list/:servicoID', async (req, res) => {
   const { servicoID } = req.params;
   try {
     const pool = await getPool();
     const query = `
-      SELECT req.*, pro.nomeProprio, pro.ultimoNome 
+      SELECT req.*, 
+             pro.nomeProprio, 
+             pro.ultimoNome, 
+             mr.medicamentoID, 
+             mr.quantidade, 
+             med.nomeMedicamento
       FROM SERVICOSDB.dbo.Requisicao req
       JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
       WHERE pro.servicoID = @servicoID
     `;
     const result = await pool.request().input('servicoID', servicoID).query(query);
-    res.json(result.recordset);
+    res.status(200).json(result.recordset);
   } catch (error) {
-    console.error(error);
-    res.status(400).send(error.message);
-  }
-});
-
-// UPDATE
-// Route to approve a request (PUT /api/request/approve/:requestID) - Only administrators
-router.put('/approve/:requestID', verifyAdmin, async (req, res) => {
-  const { requestID } = req.params;
-
-  try {
-    const pool = await getPool();
-    const query = `
-      UPDATE SERVICOSDB.dbo.Requisicao
-      SET aprovadoPorAdministrador = 1
-      WHERE requisicaoID = @requestID
-      OUTPUT INSERTED.*
-    `;
-
-    const result = await pool.request().input('requestID', requestID).query(query);
-
-    if (result.recordset.length === 0) {
-      return res.status(404).json({ message: 'Request not found or already approved.' });
-    }
-
-    res.status(200).json({ message: 'Request approved successfully.', request: result.recordset[0] });
-  } catch (error) {
-    console.error('Error approving request:', error.message);
-    res.status(500).send('Error approving request');
+    console.error('Error fetching requests for health unit:', error.message);
+    res.status(500).json({ error: 'Error fetching requests for health unit' });
   }
 });
 
 // DELETE
-// Route to delete a request (DELETE /api/request/requests/:requestID)
 router.delete('/:requestID', async (req, res) => {
   const { requestID } = req.params;
 
   try {
     const pool = await getPool();
 
-    // Delete the request
+    // Delete associated records in Medicamento_Requisicao
+    const deleteMedicamentoQuery = `
+      DELETE FROM SERVICOSDB.dbo.Medicamento_Requisicao
+      WHERE requisicaoID = @requestID
+    `;
+    await pool.request().input('requestID', requestID).query(deleteMedicamentoQuery);
+
+    // Delete the requisition
     const deleteRequestQuery = `
       DELETE FROM SERVICOSDB.dbo.Requisicao
       WHERE requisicaoID = @requestID
@@ -172,24 +181,7 @@ router.delete('/:requestID', async (req, res) => {
     res.status(200).json({ message: 'Request deleted successfully.', request: result.recordset[0] });
   } catch (error) {
     console.error('Error deleting request:', error.message);
-    res.status(500).send('Error deleting request');
-  }
-});
-
-// Additional route to approve orders (only administrators)
-router.post('/approve-order', verifyAdmin, async (req, res) => {
-  const { encomendaID } = req.body;
-  try {
-    const pool = await getPool();
-    const query = `
-      UPDATE SERVICOSDB.dbo.Encomenda
-      SET aprovadoPorAdministrador = 1
-      WHERE encomendaID = @encomendaID
-    `;
-    await pool.request().input('encomendaID', encomendaID).query(query);
-    res.status(200).send('Order approved successfully');
-  } catch (error) {
-    res.status(400).send(error.message);
+    res.status(500).json({ error: 'Error deleting request' });
   }
 });
 
