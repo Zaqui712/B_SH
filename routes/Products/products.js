@@ -38,6 +38,23 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
+// Route to check admin status
+router.get('/user/admin-status', async (req, res) => {
+  const { userID } = req.user; // Assuming userID is available in the request
+  try {
+    const query = `
+      SELECT utilizadorAdministrador 
+      FROM SERVICOSDB.dbo.Credenciais 
+      WHERE credenciaisID = @userID
+    `;
+    const result = await executeQuery(query, { userID });
+    res.status(200).json({ isAdmin: result[0]?.utilizadorAdministrador || false });
+  } catch (error) {
+    res.status(500).json({ message: 'Error verifying admin status', error: error.message });
+  }
+});
+
+
 // CREATE
 // Route to add a new medication
 router.post('/new', verifyAdmin, async (req, res) => {
