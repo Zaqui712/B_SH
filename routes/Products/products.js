@@ -78,12 +78,11 @@ router.post('/new', verifyAdmin, async (req, res) => {
 });
 
 // READ
-// Route to list all medications
+// Route to list all medications (only stock from Medicamento table)
 router.get('/all', async (req, res) => {
   const query = `
-    SELECT m.medicamentoid, m.nomeMedicamento, m.tipoMedicamento, msh.quantidadedisponivel
-    FROM SERVICOSDB.dbo.Medicamento m
-    JOIN SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
+    SELECT medicamentoid, nomeMedicamento, tipoMedicamento, descricao
+    FROM SERVICOSDB.dbo.Medicamento
   `;
   try {
     const results = await executeQuery(query);
