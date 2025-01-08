@@ -74,11 +74,12 @@ router.post('/new', verifyAdmin, async (req, res) => {
   }
 
   const query = `
-  INSERT INTO SERVICOSDB.dbo.Medicamento (nomeMedicamento, tipoMedicamento, dataValidade, lote)
-  VALUES (@nomeMedicamento, @tipoMedicamento, @dataValidade, @lote)
-	`;
+    INSERT INTO SERVICOSDB.dbo.Medicamento (nomeMedicamento, tipoMedicamento, dataValidade, lote)
+    VALUES (@nomeMedicamento, @tipoMedicamento, @dataValidade, @lote)
+  `;
 
   try {
+    // Ensure parameters are passed correctly
     await executeQuery(query, { nomeMedicamento, tipoMedicamento, dataValidade, lote });
     res.status(201).json({ message: 'Medicamento criado com sucesso.' });
   } catch (error) {
