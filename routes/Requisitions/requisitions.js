@@ -137,14 +137,11 @@ router.post('/create', async (req, res) => {
   }
 });
 
-
-
-
 // READ
 // Fetch all requests with medication details
 router.get('/all', async (req, res) => {
   try {
-    const pool = await getPool();
+    const pool = await getPool(); // Establish a connection to the SQL Server
     const query = `
       SELECT req.*, 
              mr.medicamentoID, 
@@ -154,13 +151,14 @@ router.get('/all', async (req, res) => {
       LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
       LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
     `;
-    const result = await pool.request().query(query);
-    res.status(200).json(result.recordset);
+    const result = await pool.request().query(query); // Execute the SQL query
+    res.status(200).json(result.recordset); // Send the fetched data as JSON
   } catch (error) {
-    console.error('Error listing requests:', error.message);
-    res.status(500).json({ error: 'Error listing requests' });
+    console.error('Error listing requests:', error.message); // Log any errors
+    res.status(500).json({ error: 'Error listing requests' }); // Send a 500 status with an error message
   }
 });
+
 
 // Fetch pending approval requests with medication details
 router.get('/pending-approval', async (req, res) => {
