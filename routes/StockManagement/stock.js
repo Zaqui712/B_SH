@@ -14,11 +14,11 @@ router.use(cors({
 // Route to check the entire inventory stock
 router.get('/inventory', async (req, res) => {
   const query = `
-    SELECT m.medicamentoid, m.nomeMedicamento, tm.descricao, msh.quantidadedisponivel
-    FROM SERVICOSDB.dbo.Medicamento m
-    JOIN SERVICOSDB.dbo.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
-    JOIN SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
-    WHERE msh.quantidadedisponivel > 0
+    SELECT m.medicamentoID, m.nomeMedicamento, msh.quantidadeDisponivel, msh.quantidadeMinima, sh.nomeServico
+    FROM Medicamento m
+    JOIN Medicamento_Servico_Hospitalar msh ON m.medicamentoID = msh.medicamentoID
+    JOIN Servico_Hospitalar sh ON msh.servicoID = sh.servicoID
+    WHERE msh.quantidadeDisponivel > 0
   `;
   try {
     const results = await executeQuery(query);
@@ -29,15 +29,37 @@ router.get('/inventory', async (req, res) => {
   }
 });
 
-// Route to check the stock of a specific `medicamento_servico_hospitalares`
+// Route to check the stock of a specific servico hospitalar
+router.get('/inventory/service/:servicoID', async (req, res) => {
+  const { servicoID } = req.params;
+  const query = `
+    SELECT m.medicamentoID, m.nomeMedicamento, msh.quantidadeDisponivel, msh.quantidadeMinima
+    FROM Medicamento m
+    JOIN Medicamento_Servico_Hospitalar msh ON m.medicamentoID = msh.medicamentoID
+    WHERE msh.servicoID = @servicoID AND msh.quantidadeDisponivel > 0
+  `;
+  try {
+    const results = await executeQuery(query, { servicoID });
+    if (results.recordset.length > 0) {
+      res.status(200).json(results.recordset);
+    } else {
+      res.status(404).json({ message: 'Nenhum medicamento encontrado para o serviço especificado.' });
+    }
+  } catch (error) {
+    console.error('Error checking service inventory:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Route to check the stock of a specific medicamento in a specific servico hospitalar
 router.get('/inventory/:medicamentoID/:servicoID', async (req, res) => {
   const { medicamentoID, servicoID } = req.params;
   const query = `
-    SELECT m.medicamentoid, m.nomeMedicamento, tm.descricao, msh.quantidadedisponivel
-    FROM SERVICOSDB.dbo.Medicamento m
-    JOIN SERVICOSDB.dbo.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
-    JOIN SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh ON msh.medicamentoid = m.medicamentoid
-    WHERE msh.medicamentoid = @medicamentoID AND msh.servicoid = @servicoID
+    SELECT m.medicamentoID, m.nomeMedicamento, msh.quantidadeDisponivel, msh.quantidadeMinima, sh.nomeServico
+    FROM Medicamento m
+    JOIN Medicamento_Servico_Hospitalar msh ON m.medicamentoID = msh.medicamentoID
+    JOIN Servico_Hospitalar sh ON msh.servicoID = sh.servicoID
+    WHERE msh.medicamentoID = @medicamentoID AND msh.servicoID = @servicoID
   `;
   try {
     const results = await executeQuery(query, { medicamentoID, servicoID });
@@ -62,8 +84,8 @@ router.put('/add', async (req, res) => {
   }
 
   const query = `
-    UPDATE SERVICOSDB.dbo.Medicamento_Servico_Hospitalar
-    SET quantidadedisponivel = quantidadedisponivel + @quantidadeAdicionar
+    UPDATE Medicamento_Servico_Hospitalar
+    SET quantidadeDisponivel = quantidadeDisponivel + @quantidadeAdicionar
     WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
     OUTPUT INSERTED.*
   `;
@@ -80,7 +102,7 @@ router.put('/add', async (req, res) => {
   }
 });
 
-// Route to delete values from the stock
+// Route to remove values from the stock
 router.put('/remove', async (req, res) => {
   const { medicamentoID, servicoID, quantidadeRemover } = req.body;
 
@@ -89,9 +111,9 @@ router.put('/remove', async (req, res) => {
   }
 
   const query = `
-    UPDATE SERVICOSDB.dbo.Medicamento_Servico_Hospitalar
-    SET quantidadedisponivel = quantidadedisponivel - @quantidadeRemover
-    WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID AND quantidadedisponivel >= @quantidadeRemover
+    UPDATE Medicamento_Servico_Hospitalar
+    SET quantidadeDisponivel = quantidadeDisponivel - @quantidadeRemover
+    WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID AND quantidadeDisponivel >= @quantidadeRemover
     OUTPUT INSERTED.*
   `;
   try {
