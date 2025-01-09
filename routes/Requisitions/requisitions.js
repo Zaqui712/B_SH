@@ -74,7 +74,6 @@ router.post('/create', async (req, res) => {
 
     console.log('Estado check result:', estadoCheckResult);
 
-    // Ensure the query returns a result before checking
     if (estadoCheckResult.recordset.length === 0 || estadoCheckResult.recordset[0].estadoCount === 0) {
       console.error(`estadoID ${estadoID} does not exist in Estado table`);
       return res.status(400).json({ error: `estadoID ${estadoID} does not exist in Estado table` });
@@ -105,7 +104,6 @@ router.post('/create', async (req, res) => {
 
     console.log('Requisicao insert result:', requisicaoResult);
 
-    // Ensure requisicaoID is returned correctly
     if (!requisicaoResult.recordset || requisicaoResult.recordset.length === 0) {
       console.error('Requisicao insert failed, no ID returned.');
       throw new Error('Failed to create requisicao.');
@@ -118,21 +116,40 @@ router.post('/create', async (req, res) => {
     if (Array.isArray(medicamentos) && medicamentos.length > 0) {
       console.log('Processing medicamentos:', medicamentos);
       for (const medicamento of medicamentos) {
-        const { medicamentoID, quantidade } = medicamento;
+        let { medicamentoID, quantidade } = medicamento;
 
         // Ensure medicamentoID and quantidade are present and valid
         if (medicamentoID && quantidade) {
-          const medicamentoQuery = `
+          // Check if medicamentoID is a number or a string (name)
+          if (isNaN(medicamentoID)) {
+            // If it's not a number, assume it's a name and look up the ID
+            const medicamentoQuery = 'SELECT medicamentoID FROM SERVICOSDB.dbo.Medicamento WHERE nome = @nome';
+            console.log('Executing medicamento name lookup query:', medicamentoQuery, { nome: medicamentoID });
+
+            const medicamentoResult = await transaction.request()
+              .input('nome', medicamentoID)
+              .query(medicamentoQuery);
+
+            if (medicamentoResult.recordset.length > 0) {
+              medicamentoID = medicamentoResult.recordset[0].medicamentoID;
+              console.log('Found medicamentoID for name:', medicamentoID);
+            } else {
+              console.error('Medicamento name not found:', medicamentoID);
+              return res.status(400).json({ error: `Medicamento '${medicamentoID}' not found` });
+            }
+          }
+
+          const medicamentoInsertQuery = `
             INSERT INTO SERVICOSDB.dbo.Medicamento_Requisicao (medicamentoID, requisicaoID, quantidade)
             VALUES (@medicamentoID, @requisicaoID, @quantidade)
           `;
-          console.log('Executing medicamento insert query:', medicamentoQuery, { medicamentoID, requisicaoID, quantidade });
+          console.log('Executing medicamento insert query:', medicamentoInsertQuery, { medicamentoID, requisicaoID, quantidade });
 
           await transaction.request()
             .input('medicamentoID', medicamentoID)
             .input('requisicaoID', requisicaoID)
             .input('quantidade', quantidade)
-            .query(medicamentoQuery);
+            .query(medicamentoInsertQuery);
 
           console.log('Inserted medicamento:', { medicamentoID, quantidade });
         } else {
@@ -160,7 +177,6 @@ router.post('/create', async (req, res) => {
     res.status(500).json({ error: 'Error creating request', details: error.message });
   }
 });
-
 
 // READ
 // Fetch all requests with medication details
