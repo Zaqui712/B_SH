@@ -33,8 +33,8 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
-router.post('/create', async (req, res) => {
-  const { estadoID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos } = req.body;
+router.post('/create', async (req, res) => { 
+  const { estadoID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos, servicoHospitalarAlvoID } = req.body;
 
   console.log('Received request body:', req.body);
 
@@ -83,14 +83,14 @@ router.post('/create', async (req, res) => {
     console.log('Starting transaction...');
     await transaction.begin();
 
-    // Insert into Requisicao table
+    // Insert into Requisicao table including servicoHospitalarAlvoID
     const requisicaoQuery = `
       INSERT INTO SERVICOSDB.dbo.Requisicao 
-      (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega)
+      (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, servicoHospitalarAlvoID)
       OUTPUT INSERTED.requisicaoID
-      VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega)
+      VALUES (@estadoID, @profissionalID, @adminID, @aprovadoPorAdministrador, @requisicaoCompleta, @dataRequisicao, @dataEntrega, @servicoHospitalarAlvoID)
     `;
-    console.log('Executing requisicao insert query:', requisicaoQuery, { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega });
+    console.log('Executing requisicao insert query:', requisicaoQuery, { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, servicoHospitalarAlvoID });
 
     const requisicaoResult = await transaction.request()
       .input('estadoID', estadoID)
@@ -100,6 +100,7 @@ router.post('/create', async (req, res) => {
       .input('requisicaoCompleta', requisicaoCompleta || 0)
       .input('dataRequisicao', dataRequisicao)
       .input('dataEntrega', dataEntrega || null)
+      .input('servicoHospitalarAlvoID', servicoHospitalarAlvoID || 0)  // Default to 0 if not provided
       .query(requisicaoQuery);
 
     console.log('Requisicao insert result:', requisicaoResult);
@@ -182,6 +183,8 @@ router.post('/create', async (req, res) => {
     res.status(500).json({ error: 'Error creating request', details: error.message });
   }
 });
+
+
 
 
 // READ
