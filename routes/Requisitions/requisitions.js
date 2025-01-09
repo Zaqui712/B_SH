@@ -33,8 +33,6 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
-const jwt = require('jsonwebtoken');
-
 router.post('/create', async (req, res) => {
   const { estadoID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos } = req.body;
 
