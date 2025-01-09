@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors'); // Import cors
 const router = express.Router();
 const { getPool } = require('../../db'); // Updated path
+const jwt = require('jsonwebtoken');
 
 // Enable CORS for all origins
 const corsOptions = {
@@ -32,10 +33,35 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
+const jwt = require('jsonwebtoken');
+
 router.post('/create', async (req, res) => {
-  const { estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos } = req.body;
+  const { estadoID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos } = req.body;
 
   console.log('Received request body:', req.body);
+
+  // Extract the token from the Authorization header
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+
+  const { userID, isAdmin } = decoded;
+
+  if (!userID) {
+    return res.status(400).json({ error: 'User ID not found in token' });
+  }
+
+  const profissionalID = !isAdmin ? userID : null; // Use userID as profissionalID if not admin
+  const adminID = isAdmin ? userID : null; // Use userID as adminID if admin
 
   const pool = await getPool();
   const transaction = pool.transaction();
@@ -136,6 +162,7 @@ router.post('/create', async (req, res) => {
     res.status(500).json({ error: 'Error creating request', details: error.message });
   }
 });
+
 
 // READ
 // Fetch all requests with medication details
