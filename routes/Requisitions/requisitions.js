@@ -123,21 +123,20 @@ router.post('/create', async (req, res) => {
           // Check if medicamentoID is a number or a string (name)
           if (isNaN(medicamentoID)) {
             // If it's not a number, assume it's a name and look up the ID
-			const medicamentoQuery = 'SELECT medicamentoID FROM SERVICOSDB.dbo.Medicamento WHERE nomeMedicamento = @nome';
-			console.log('Executing medicamento name lookup query:', medicamentoQuery, { nome: medicamentoID });
+            const medicamentoQuery = 'SELECT medicamentoID FROM SERVICOSDB.dbo.Medicamento WHERE nomeMedicamento = @nome';
+            console.log('Executing medicamento name lookup query:', medicamentoQuery, { nome: medicamentoID });
 
             const medicamentoResult = await transaction.request()
-			.input('nome', medicamentoID)
-			.query(medicamentoQuery);
-			
+              .input('nome', medicamentoID)
+              .query(medicamentoQuery);
 
             if (medicamentoResult.recordset.length > 0) {
-			  medicamentoID = medicamentoResult.recordset[0].medicamentoID;
-			  console.log('Found medicamentoID for name:', medicamentoID);
-			} else {
-			  console.error('Medicamento name not found:', medicamentoID);
-			  return res.status(400).json({ error: `Medicamento '${medicamentoID}' not found` });
-			}
+              medicamentoID = medicamentoResult.recordset[0].medicamentoID;
+              console.log('Found medicamentoID for name:', medicamentoID);
+            } else {
+              console.error('Medicamento name not found:', medicamentoID);
+              return res.status(400).json({ error: `Medicamento '${medicamentoID}' not found` });
+            }
           }
 
           const medicamentoInsertQuery = `
@@ -146,13 +145,18 @@ router.post('/create', async (req, res) => {
           `;
           console.log('Executing medicamento insert query:', medicamentoInsertQuery, { medicamentoID, requisicaoID, quantidade });
 
-          await transaction.request()
-            .input('medicamentoID', medicamentoID)
-            .input('requisicaoID', requisicaoID)
-            .input('quantidade', quantidade)
-            .query(medicamentoInsertQuery);
+          try {
+            await transaction.request()
+              .input('medicamentoID', medicamentoID)
+              .input('requisicaoID', requisicaoID)
+              .input('quantidade', quantidade)
+              .query(medicamentoInsertQuery);
 
-          console.log('Inserted medicamento:', { medicamentoID, quantidade });
+            console.log('Inserted medicamento:', { medicamentoID, quantidade });
+          } catch (err) {
+            console.error('Error inserting medicamento:', err.message);
+            return res.status(500).json({ error: 'Error inserting medicamento' });
+          }
         } else {
           console.error('Invalid medicamento data:', medicamento);
         }
@@ -178,6 +182,7 @@ router.post('/create', async (req, res) => {
     res.status(500).json({ error: 'Error creating request', details: error.message });
   }
 });
+
 
 // READ
 // Fetch all requests with medication details
