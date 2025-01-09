@@ -191,9 +191,22 @@ router.get('/all', async (req, res) => {
     const pool = await getPool(); // Establish the database connection
     const query = `
       SELECT 
-          R.*,
-          P.*,
-          SH.*
+          R.requisicaoID,
+          R.estadoID,
+          R.profissionalID,
+          R.adminID,
+          R.aprovadoPorAdministrador,
+          R.requisicaoCompleta,
+          R.dataRequisicao,
+          R.dataEntrega,
+          P.nomeProprio AS nomeProfissional,
+          P.ultimoNome AS ultimoNomeProfissional,
+          P.contacto AS contactoProfissional,
+          SH.servicoID,
+          SH.nomeServico,
+          SH.descServico,
+          SH.localidadeServico,
+          SH.servicoDisponivel24horas
       FROM 
           SERVICOSDB.dbo.Requisicao R
       JOIN 
@@ -209,6 +222,7 @@ router.get('/all', async (req, res) => {
     res.status(500).json({ error: 'Error fetching requisitions' });
   }
 });
+
 
 
 
