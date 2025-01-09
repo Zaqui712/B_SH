@@ -123,20 +123,21 @@ router.post('/create', async (req, res) => {
           // Check if medicamentoID is a number or a string (name)
           if (isNaN(medicamentoID)) {
             // If it's not a number, assume it's a name and look up the ID
-            const medicamentoQuery = 'SELECT medicamentoID FROM SERVICOSDB.dbo.Medicamento WHERE nome = @nome';
-            console.log('Executing medicamento name lookup query:', medicamentoQuery, { nome: medicamentoID });
+			const medicamentoQuery = 'SELECT medicamentoID FROM SERVICOSDB.dbo.Medicamento WHERE nomeMedicamento = @nome';
+			console.log('Executing medicamento name lookup query:', medicamentoQuery, { nome: medicamentoID });
 
             const medicamentoResult = await transaction.request()
-              .input('nome', medicamentoID)
-              .query(medicamentoQuery);
+			.input('nome', medicamentoID)
+			.query(medicamentoQuery);
+			
 
             if (medicamentoResult.recordset.length > 0) {
-              medicamentoID = medicamentoResult.recordset[0].medicamentoID;
-              console.log('Found medicamentoID for name:', medicamentoID);
-            } else {
-              console.error('Medicamento name not found:', medicamentoID);
-              return res.status(400).json({ error: `Medicamento '${medicamentoID}' not found` });
-            }
+			  medicamentoID = medicamentoResult.recordset[0].medicamentoID;
+			  console.log('Found medicamentoID for name:', medicamentoID);
+			} else {
+			  console.error('Medicamento name not found:', medicamentoID);
+			  return res.status(400).json({ error: `Medicamento '${medicamentoID}' not found` });
+			}
           }
 
           const medicamentoInsertQuery = `
