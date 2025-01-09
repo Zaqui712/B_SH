@@ -36,6 +36,36 @@ const verifyAdmin = async (req, res, next) => {
 //CREATE
 
 //READ
+// Endpoint to get services with positive stock for a given medicamentoID
+router.get('/:medicamentoID/servicos', async (req, res) => {
+  const { medicamentoID } = req.params; // Extract medicamentoID from URL parameter
+
+  try {
+    const pool = await getPool();
+    // Query to get servicos with positive stock for the given medicamentoID
+    const query = `
+      SELECT s.servicoID, s.nomeServico
+      FROM SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh
+      JOIN SERVICOSDB.dbo.Servico_Hospitalar s
+        ON msh.servicoID = s.servicoID
+      WHERE msh.medicamentoID = @medicamentoID
+        AND msh.quantidadeDisponivel > 0
+    `;
+    
+    const result = await pool.request().input('medicamentoID', medicamentoID).query(query);
+
+    if (result.recordset.length > 0) {
+      // Return the list of services with positive stock
+      res.status(200).json(result.recordset);
+    } else {
+      // No services found with positive stock
+      res.status(404).send('No services with positive stock found for the given medicamentoID.');
+    }
+  } catch (error) {
+    console.error('Error fetching services:', error.message);
+    res.status(500).send('Internal server error');
+  }
+});
 
 //UPDATE
 
