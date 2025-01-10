@@ -49,12 +49,12 @@ router.post('/create', async (req, res) => {
     await transaction.begin();
 
     try {
-      // Create the order
+      // Create the order and get the inserted ID using OUTPUT clause
       const createOrderQuery = `
         INSERT INTO SERVICOSDB.dbo.Encomenda 
         (estadoID, adminID, fornecedorID, profissionalID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada)
-        VALUES (@estadoID, @adminID, @fornecedorID, @profissionalID, @aprovadoPorAdministrador, @encomendaCompleta, @dataEncomenda, @dataEntrega, @quantidadeEnviada)
         OUTPUT INSERTED.encomendaID
+        VALUES (@estadoID, @adminID, @fornecedorID, @profissionalID, @aprovadoPorAdministrador, @encomendaCompleta, @dataEncomenda, @dataEntrega, @quantidadeEnviada)
       `;
       
       const createOrderResult = await transaction.request()
@@ -69,6 +69,7 @@ router.post('/create', async (req, res) => {
         .input('quantidadeEnviada', quantidadeEnviada)
         .query(createOrderQuery);
         
+      // Retrieve the new order ID
       const newOrderID = createOrderResult.recordset[0].encomendaID;
 
       // Link medications to the order
@@ -99,6 +100,7 @@ router.post('/create', async (req, res) => {
     res.status(400).send(`Error: ${error.message}`);
   }
 });
+
 
 
 
