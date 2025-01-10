@@ -26,14 +26,23 @@ const Alerts = async (req, res) => {
   `;
 
   const pendingOrdersQuery = `
-    SELECT e.*, a.nomeProprio, a.ultimoNome
+    SELECT e.encomendaID, e.dataEncomenda, e.aprovadoPorAdministrador, e.quantidadeEnviada, 
+           a.nomeProprio, a.ultimoNome
     FROM SERVICOSDB.dbo.Encomenda e
     JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
     WHERE e.aprovadoPorAdministrador = 0;
   `;
 
+  const incompleteOrdersQuery = `
+    SELECT e.encomendaID, e.dataEntrega, e.encomendaCompleta, f.nomeFornecedor
+    FROM SERVICOSDB.dbo.Encomenda e
+    JOIN SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
+    WHERE e.encomendaCompleta = 0;
+  `;
+
   const pendingRequestsQuery = `
-    SELECT req.*, pro.nomeProprio, pro.ultimoNome 
+    SELECT req.requisicaoID, req.dataRequisicao, req.aprovadoPorAdministrador, 
+           pro.nomeProprio, pro.ultimoNome 
     FROM SERVICOSDB.dbo.Requisicao req
     JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
     WHERE req.aprovadoPorAdministrador = 0;
@@ -41,9 +50,10 @@ const Alerts = async (req, res) => {
 
   try {
     // Execute all queries concurrently
-    const [medicationsResults, ordersResults, requestsResults] = await Promise.all([
+    const [medicationsResults, pendingOrdersResults, incompleteOrdersResults, pendingRequestsResults] = await Promise.all([
       pool.request().query(checkMedicationsQuery),
       pool.request().query(pendingOrdersQuery),
+      pool.request().query(incompleteOrdersQuery),
       pool.request().query(pendingRequestsQuery),
     ]);
 
@@ -53,12 +63,16 @@ const Alerts = async (req, res) => {
         ? medicationsResults.recordset 
         : 'All medications are above the minimum quantity.',
       
-      orders: ordersResults.recordset.length > 0 
-        ? ordersResults.recordset 
+      pendingOrders: pendingOrdersResults.recordset.length > 0 
+        ? pendingOrdersResults.recordset 
         : 'No pending approval orders.',
       
-      requests: requestsResults.recordset.length > 0 
-        ? requestsResults.recordset 
+      incompleteOrders: incompleteOrdersResults.recordset.length > 0 
+        ? incompleteOrdersResults.recordset 
+        : 'All orders are marked as complete.',
+      
+      requests: pendingRequestsResults.recordset.length > 0 
+        ? pendingRequestsResults.recordset 
         : 'No pending approval requests.',
     };
 
