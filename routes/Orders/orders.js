@@ -34,48 +34,72 @@ const verifyAdmin = async (req, res, next) => {
 // Route to create a manual order
 router.post('/create', async (req, res) => {
   const { estadoID, adminID, fornecedorID, profissionalID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada, medicamentos } = req.body;
+  
   try {
+    // Check required fields
     if (!estadoID || !adminID || !fornecedorID || !profissionalID || aprovadoPorAdministrador === undefined || encomendaCompleta === undefined || !dataEncomenda || !medicamentos || medicamentos.length === 0) {
       throw new Error('All fields are required');
     }
 
+    // Get database pool
     const pool = await getPool();
-    const createOrderQuery = `
-      INSERT INTO SERVICOSDB.dbo.Encomenda (estadoID, adminID, fornecedorID, profissionalID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada)
-      VALUES (@estadoID, @adminID, @fornecedorID, @profissionalID, @aprovadoPorAdministrador, @encomendaCompleta, @dataEncomenda, @dataEntrega, @quantidadeEnviada)
-      OUTPUT INSERTED.encomendaID
-    `;
-    const createOrderResult = await pool.request()
-      .input('estadoID', estadoID)
-      .input('adminID', adminID)
-      .input('fornecedorID', fornecedorID)
-      .input('profissionalID', profissionalID) // Add profissionalID here
-      .input('aprovadoPorAdministrador', aprovadoPorAdministrador)
-      .input('encomendaCompleta', encomendaCompleta)
-      .input('dataEncomenda', dataEncomenda)
-      .input('dataEntrega', dataEntrega)
-      .input('quantidadeEnviada', quantidadeEnviada)
-      .query(createOrderQuery);
-    const newOrderID = createOrderResult.recordset[0].encomendaID;
 
-    // Link medications to the order
-    for (const med of medicamentos) {
-      const linkMedicationQuery = `
-        INSERT INTO SERVICOSDB.dbo.Medicamento_Encomenda (medicamentoID, encomendaID, quantidade)
-        VALUES (@medicamentoID, @encomendaID, @quantidade)
+    // Start a transaction
+    const transaction = new pool.Transaction();
+    await transaction.begin();
+
+    try {
+      // Create the order
+      const createOrderQuery = `
+        INSERT INTO SERVICOSDB.dbo.Encomenda 
+        (estadoID, adminID, fornecedorID, profissionalID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada)
+        VALUES (@estadoID, @adminID, @fornecedorID, @profissionalID, @aprovadoPorAdministrador, @encomendaCompleta, @dataEncomenda, @dataEntrega, @quantidadeEnviada)
+        OUTPUT INSERTED.encomendaID
       `;
-      await pool.request()
-        .input('medicamentoID', med.medicamentoID)
-        .input('encomendaID', newOrderID)
-        .input('quantidade', med.quantidade)
-        .query(linkMedicationQuery);
+      
+      const createOrderResult = await transaction.request()
+        .input('estadoID', estadoID)
+        .input('adminID', adminID)
+        .input('fornecedorID', fornecedorID)
+        .input('profissionalID', profissionalID)
+        .input('aprovadoPorAdministrador', aprovadoPorAdministrador)
+        .input('encomendaCompleta', encomendaCompleta)
+        .input('dataEncomenda', dataEncomenda)
+        .input('dataEntrega', dataEntrega)
+        .input('quantidadeEnviada', quantidadeEnviada)
+        .query(createOrderQuery);
+        
+      const newOrderID = createOrderResult.recordset[0].encomendaID;
+
+      // Link medications to the order
+      for (const med of medicamentos) {
+        const linkMedicationQuery = `
+          INSERT INTO SERVICOSDB.dbo.Medicamento_Encomenda (medicamentoID, encomendaID, quantidade)
+          VALUES (@medicamentoID, @encomendaID, @quantidade)
+        `;
+        
+        await transaction.request()
+          .input('medicamentoID', med.medicamentoID)
+          .input('encomendaID', newOrderID)
+          .input('quantidade', med.quantidade)
+          .query(linkMedicationQuery);
+      }
+
+      // Commit the transaction
+      await transaction.commit();
+      
+      res.status(201).send('Order created successfully');
+    } catch (error) {
+      // Rollback the transaction in case of error
+      await transaction.rollback();
+      res.status(400).send(`Error creating order: ${error.message}`);
     }
 
-    res.status(201).send('Order created successfully');
   } catch (error) {
-    res.status(400).send(error.message);
+    res.status(400).send(`Error: ${error.message}`);
   }
 });
+
 
 // READ
 // Route to list all orders
