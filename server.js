@@ -1,21 +1,24 @@
 const express = require('express');
 const app = express();
-const { getPool } = require('./db');
 
 // Middleware
 app.use(express.json());
 
+// Database connection (if necessary for pool usage)
+const { getPool } = require('./db');
+
+// Supplier routes
+const supplierRoutes = require('./routes/Supplier/supplier');
+app.use('/api/supplier', supplierRoutes);
+
 // Requisitions
 const requisitionsRoutes = require('./routes/Requisitions/requisitions');
 const automaticRequisitionsRoutes = require('./routes/Requisitions/automaticRequisitions');
-	//
 const requisitionsLogicRoutes = require('./routes/Requisitions/requisitionsLogic');
 
 app.use('/api/requests', requisitionsRoutes);
 app.use('/api/automatic-requests', automaticRequisitionsRoutes);
-	//
 app.use('/api/requests', requisitionsLogicRoutes);
-
 
 // Orders
 const ordersRoutes = require('./routes/Orders/orders');
