@@ -205,15 +205,16 @@ router.get('/all', async (req, res) => {
           P.contacto AS contactoProfissional,
           SH.servicoID,
           SH.nomeServico,
-          SH.descServico,
-          SH.localidadeServico,
-          SH.servicoDisponivel24horas
+          SH.servicoDisponivel24horas,
+          SRH.nomeServico AS nomeServicoHospitalarRemetente
       FROM 
           SERVICOSDB.dbo.Requisicao R
       JOIN 
           SERVICOSDB.dbo.Profissional_De_Saude P ON R.profissionalID = P.profissionalID
       JOIN 
           SERVICOSDB.dbo.Servico_Hospitalar SH ON P.servicoID = SH.servicoID
+      LEFT JOIN 
+          SERVICOSDB.dbo.Servico_Hospitalar SRH ON R.servicoHospitalarRemetenteID = SRH.servicoID
     `;
 
     const result = await pool.request().query(query); // Execute the SQL query
@@ -223,6 +224,7 @@ router.get('/all', async (req, res) => {
     res.status(500).json({ error: 'Error fetching requisitions' });
   }
 });
+
 
 //UPDATE
 //APPROVE
