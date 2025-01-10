@@ -231,7 +231,6 @@ router.post('/approve/:requisicaoID', async (req, res) => {
 
   console.log(`Approving request with requisicaoID: ${requisicaoID}`);
 
-  // Extract the token from the Authorization header
   const token = req.headers.authorization?.split(' ')[1];
 
   if (!token) {
@@ -274,7 +273,6 @@ router.post('/approve/:requisicaoID', async (req, res) => {
       throw new Error('Requisicao not found or already approved');
     }
 
-    // Default aprovadoPorAdministrador to 1 if not provided
     const status = aprovadoPorAdministrador === undefined ? 1 : aprovadoPorAdministrador;
 
     // Execute the approval update
@@ -302,14 +300,18 @@ router.post('/approve/:requisicaoID', async (req, res) => {
     console.log('Requisicao approved successfully:', { requisicaoID });
     res.status(200).json({ message: 'Requisicao approved successfully', requisicaoID });
   } catch (error) {
-    if (transaction) await transaction.rollback();
+    if (transaction) {
+      try {
+        await transaction.rollback(); // Ensure rollback occurs even in error case
+        console.log('Transaction rolled back');
+      } catch (rollbackError) {
+        console.error('Error rolling back transaction:', rollbackError.message);
+      }
+    }
     console.error('Error approving requisicao:', error.message);
-    res.status(500).json({ error: 'Error approving requisicao' });
+    res.status(500).json({ error: 'Error approving requisicao', details: error.message });
   }
 });
-
-
-
 
 // Fetch pending approval requests with medication details
 router.get('/pending-approval', async (req, res) => {
