@@ -83,18 +83,53 @@ router.get('/all', async (req, res) => {
   try {
     const pool = await getPool();
     const query = `
-      SELECT e.*, a.nomeProprio, a.ultimoNome, f.nomeFornecedor, p.nomeProprio AS profissionalNome, p.ultimoNome AS profissionalUltimoNome
-      FROM SERVICOSDB.dbo.Encomenda e
-      JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
-      JOIN SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
-      LEFT JOIN SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID
+      SELECT 
+        e.encomendaID,
+        e.estadoID,
+        e.adminID,
+        e.fornecedorID,
+        e.encomendaCompleta,
+        e.aprovadoPorAdministrador,
+        e.dataEncomenda,
+        e.dataEntrega,
+        e.quantidadeEnviada,
+        e.profissionalID,
+        a.nomeProprio AS adminNome,
+        a.ultimoNome AS adminUltimoNome,
+        f.nomeFornecedor,
+        p.nomeProprio AS profissionalNome,
+        p.ultimoNome AS profissionalUltimoNome,
+        sh.nomeServico AS servicoNome  -- Only retrieving the name of the Servico_Hospitalar
+      FROM 
+        SERVICOSDB.dbo.Encomenda e
+      JOIN 
+        SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
+      JOIN 
+        SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
+      LEFT JOIN 
+        SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID
+      LEFT JOIN 
+        SERVICOSDB.dbo.Servico_Hospitalar sh ON p.servicoID = sh.servicoID
     `;
+    
+    console.log('Executing query:', query); // Log the query for debugging
+    
     const result = await pool.request().query(query);
+    
+    if (result.recordset.length === 0) {
+      console.log('No records found.');
+      res.status(404).json({ message: 'No orders found' });
+      return;
+    }
+
+    console.log('Query result:', result.recordset); // Log the result for debugging
     res.json(result.recordset);
   } catch (error) {
-    res.status(400).send(error.message);
+    console.error('Error fetching orders:', error.message); // Log the error for debugging
+    res.status(400).send({ error: error.message });
   }
 });
+
 
 // Route to list pending approval orders
 router.get('/pending-approval', async (req, res) => {
