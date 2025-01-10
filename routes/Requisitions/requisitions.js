@@ -226,8 +226,8 @@ router.get('/all', async (req, res) => {
 //UPDATE
 //APPROVE
 router.post('/approve/:requisicaoID', async (req, res) => {
-  const { requisicaoID } = req.params; // Extract requisicaoID from URL params
-  const { aprovadoPorAdministrador } = req.body; // You can also send this value in the body
+  const { requisicaoID } = req.params;
+  const { aprovadoPorAdministrador } = req.body;
 
   console.log(`Approving request with requisicaoID: ${requisicaoID}`);
 
@@ -252,23 +252,38 @@ router.post('/approve/:requisicaoID', async (req, res) => {
   }
 
   const pool = await getPool();
-
   let transaction;
-  
+
   try {
     // Start the transaction
     transaction = pool.transaction();
     await transaction.begin();
 
-    // Ensure 'aprovadoPorAdministrador' is provided, default to 1 if not
+    // Validate requisicaoID exists and is pending approval
+    const validateQuery = `
+      SELECT COUNT(*) AS requisicaoExists
+      FROM SERVICOSDB.dbo.Requisicao
+      WHERE requisicaoID = @requisicaoID AND aprovadoPorAdministrador = 0
+    `;
+    const validateResult = await transaction.request()
+      .input('requisicaoID', requisicaoID)
+      .query(validateQuery);
+
+    if (validateResult.recordset[0].requisicaoExists === 0) {
+      console.error(`Requisicao not found or already approved with requisicaoID: ${requisicaoID}`);
+      throw new Error('Requisicao not found or already approved');
+    }
+
+    // Default aprovadoPorAdministrador to 1 if not provided
     const status = aprovadoPorAdministrador === undefined ? 1 : aprovadoPorAdministrador;
 
-    // Update the status of the requisicao to approved
-    const approveQuery = `UPDATE SERVICOSDB.dbo.Requisicao 
+    // Execute the approval update
+    const approveQuery = `
+      UPDATE SERVICOSDB.dbo.Requisicao
       SET aprovadoPorAdministrador = @aprovadoPorAdministrador
-      WHERE requisicaoID = @requisicaoID`;
-
-    console.log('Executing approve query:', approveQuery, { requisicaoID, aprovadoPorAdministrador: status });
+      WHERE requisicaoID = @requisicaoID
+    `;
+    console.log('Executing approval query:', approveQuery, { requisicaoID, aprovadoPorAdministrador: status });
 
     const approveResult = await transaction.request()
       .input('requisicaoID', requisicaoID)
@@ -281,7 +296,6 @@ router.post('/approve/:requisicaoID', async (req, res) => {
     }
 
     // Commit the transaction
-    console.log('Committing approval transaction...');
     await transaction.commit();
 
     // Respond with success
@@ -295,11 +309,10 @@ router.post('/approve/:requisicaoID', async (req, res) => {
     }
 
     console.error('Error approving requisicao:', error.message);
-
-    // Respond with error
     res.status(500).json({ error: 'Error approving requisicao', details: error.message });
   }
 });
+
 
 
 
