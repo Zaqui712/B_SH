@@ -25,20 +25,18 @@ const Alerts = async (req, res) => {
     WHERE msh.quantidadeDisponivel < msh.quantidadeMinima;
   `;
 
-  const pendingOrdersQuery = `
-    SELECT e.encomendaID, e.dataEncomenda, e.aprovadoPorAdministrador, e.quantidadeEnviada, 
-           a.nomeProprio, a.ultimoNome
-    FROM SERVICOSDB.dbo.Encomenda e
-    JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
-    WHERE e.aprovadoPorAdministrador = 0;
-  `;
-
-  const incompleteOrdersQuery = `
-    SELECT e.encomendaID, e.dataEntrega, e.encomendaCompleta, f.nomeFornecedor
-    FROM SERVICOSDB.dbo.Encomenda e
-    JOIN SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
-    WHERE e.encomendaCompleta = 0;
-  `;
+	  const pendingOrdersQuery = `
+	  SELECT e.encomendaID, e.dataEncomenda, e.aprovadoPorAdministrador, e.quantidadeEnviada, 
+			 e.estadoID, e.encomendaCompleta, e.dataEntrega,
+			 a.nomeProprio, a.ultimoNome,
+			 es.descricao AS estadoDescricao,  -- To include the state description
+			 f.nomeFornecedor, f.contactoFornecedor
+	  FROM SERVICOSDB.dbo.Encomenda e
+	  JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
+	  JOIN SERVICOSDB.dbo.Estado es ON e.estadoID = es.estadoID  -- Joining Estado to get the state description
+	  JOIN SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID  -- Joining Fornecedor to get supplier info
+	  WHERE e.aprovadoPorAdministrador = 0;
+	`;
 
   const pendingRequestsQuery = `
     SELECT req.requisicaoID, req.dataRequisicao, req.aprovadoPorAdministrador, 
