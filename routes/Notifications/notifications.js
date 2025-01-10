@@ -1,7 +1,7 @@
-const express = require('express'); 
-const cors = require('cors'); // Import cors
+const express = require('express');
+const cors = require('cors');
 const router = express.Router();
-const { getPool } = require('../../db'); // Updated path
+const { getPool } = require('../../db');
 
 // Enable CORS for all origins
 const corsOptions = {
@@ -13,21 +13,18 @@ const corsOptions = {
 // Apply CORS middleware globally
 router.use(cors(corsOptions));
 
-// Alerts handler function
 const Alerts = async (req, res) => {
   const pool = await getPool();
 
-  // Query for checking medication quantities
+  // Queries for alerts
   const checkMedicationsQuery = `
-    SELECT msh.medicamentoid, msh.servicoid, msh.quantidadedisponivel, msh.quantidademinima,
-           m.nomeMedicamento, tm.descricao
+    SELECT msh.medicamentoID, msh.servicoID, msh.quantidadeDisponivel, msh.quantidadeMinima,
+           m.nomeMedicamento, m.tipoMedicamento
     FROM SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh
-    JOIN SERVICOSDB.dbo.Medicamento m ON msh.medicamentoid = m.medicamentoid
-    JOIN SERVICOSDB.dbo.Tipo_Medicamento tm ON m.tipoID = tm.tipoID
-    WHERE msh.quantidadedisponivel < msh.quantidademinima;
+    JOIN SERVICOSDB.dbo.Medicamento m ON msh.medicamentoID = m.medicamentoID
+    WHERE msh.quantidadeDisponivel < msh.quantidadeMinima;
   `;
 
-  // Query for listing pending orders
   const pendingOrdersQuery = `
     SELECT e.*, a.nomeProprio, a.ultimoNome
     FROM SERVICOSDB.dbo.Encomenda e
@@ -35,7 +32,6 @@ const Alerts = async (req, res) => {
     WHERE e.aprovadoPorAdministrador = 0;
   `;
 
-  // Query for listing pending requests for approval
   const pendingRequestsQuery = `
     SELECT req.*, pro.nomeProprio, pro.ultimoNome 
     FROM SERVICOSDB.dbo.Requisicao req
@@ -48,35 +44,22 @@ const Alerts = async (req, res) => {
     const [medicationsResults, ordersResults, requestsResults] = await Promise.all([
       pool.request().query(checkMedicationsQuery),
       pool.request().query(pendingOrdersQuery),
-      pool.request().query(pendingRequestsQuery)
+      pool.request().query(pendingRequestsQuery),
     ]);
-
-    // Check medication quantities
-    const medications = medicationsResults.recordset;
-    if (medications.length > 0) {
-      console.log('Medications below minimum quantity:', medications);
-    }
-
-    // Check pending orders
-    const orders = ordersResults.recordset;
-    if (orders.length > 0) {
-      console.log('Pending approval orders:', orders);
-    }
-
-    // Check pending requests
-    const requests = requestsResults.recordset;
-    if (requests.length > 0) {
-      console.log('Pending approval requests:');
-      requests.forEach((row) => {
-        console.log(`- ID: ${row.requisicaoID}, Name: ${row.nomeProprio} ${row.ultimoNome}, Request Date: ${row.dataRequisicao}`);
-      });
-    }
 
     // Prepare the response
     const response = {
-      medications: medications.length > 0 ? medications : 'All medications are above the minimum quantity.',
-      orders: orders.length > 0 ? orders : 'No pending approval orders.',
-      requests: requests.length > 0 ? requests : 'No pending approval requests.'
+      medications: medicationsResults.recordset.length > 0 
+        ? medicationsResults.recordset 
+        : 'All medications are above the minimum quantity.',
+      
+      orders: ordersResults.recordset.length > 0 
+        ? ordersResults.recordset 
+        : 'No pending approval orders.',
+      
+      requests: requestsResults.recordset.length > 0 
+        ? requestsResults.recordset 
+        : 'No pending approval requests.',
     };
 
     res.status(200).json(response);
@@ -86,7 +69,7 @@ const Alerts = async (req, res) => {
   }
 };
 
-// Note the path used here: '/'
+// Route configuration
 router.get('/', Alerts);
 
 module.exports = router;
