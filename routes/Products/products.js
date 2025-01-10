@@ -97,8 +97,35 @@ router.post('/new', verifyAdmin, async (req, res) => {
 
 
 // READ
-// Route to list all medications
+// Route to list all medications and list their global stock
 router.get('/all', async (req, res) => {
+  const query = `
+    SELECT 
+      m.medicamentoID, 
+      m.nomeMedicamento, 
+      m.tipoMedicamento, 
+      m.dataValidade, 
+      m.lote,
+      COALESCE(SUM(msh.quantidadeDisponivel), 0) AS stockGlobal
+    FROM 
+      SERVICOSDB.dbo.Medicamento m
+    LEFT JOIN 
+      SERVICOSDB.dbo.Medicamento_Servico_Hospitalar msh ON m.medicamentoID = msh.medicamentoID
+    GROUP BY 
+      m.medicamentoID, m.nomeMedicamento, m.tipoMedicamento, m.dataValidade, m.lote;
+  `;
+
+  try {
+    const results = await executeQuery(query);
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error listing medications:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Route to list all medications
+router.get('/allmedicamentoslist', async (req, res) => {
   const query = `
     SELECT medicamentoid, nomeMedicamento, tipoMedicamento, dataValidade, lote
     FROM SERVICOSDB.dbo.Medicamento
