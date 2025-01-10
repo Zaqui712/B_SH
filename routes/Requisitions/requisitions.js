@@ -302,12 +302,29 @@ router.post('/approve/:requisicaoID', async (req, res) => {
       throw new Error('Requisicao not found or already approved');
     }
 
+    // Update estadoID to 3 after approval
+    const updateEstadoQuery = `
+      UPDATE SERVICOSDB.dbo.Requisicao
+      SET estadoID = 3
+      WHERE requisicaoID = @requisicaoID
+    `;
+    console.log('Executing update estadoID query:', updateEstadoQuery, { requisicaoID });
+
+    const updateEstadoResult = await transaction.request()
+      .input('requisicaoID', requisicaoID)
+      .query(updateEstadoQuery);
+
+    if (updateEstadoResult.rowsAffected === 0) {
+      console.error(`Failed to update estadoID for requisicaoID: ${requisicaoID}`);
+      throw new Error('Failed to update estadoID');
+    }
+
     // Commit the transaction
     await transaction.commit();
 
     // Respond with success
-    console.log('Requisicao approved successfully:', { requisicaoID });
-    res.status(200).json({ message: 'Requisicao approved successfully', requisicaoID });
+    console.log('Requisicao approved and estadoID updated to 3 successfully:', { requisicaoID });
+    res.status(200).json({ message: 'Requisicao approved and estadoID updated to 3 successfully', requisicaoID });
   } catch (error) {
     if (transaction) {
       try {
@@ -321,6 +338,7 @@ router.post('/approve/:requisicaoID', async (req, res) => {
     res.status(500).json({ error: 'Error approving requisicao', details: error.message });
   }
 });
+
 
 // Fetch pending approval requests with medication details
 router.get('/pending-approval', async (req, res) => {
