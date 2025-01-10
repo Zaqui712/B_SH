@@ -34,7 +34,7 @@ const verifyAdmin = async (req, res, next) => {
 // Route to create a manual order
 router.post('/create', async (req, res) => {
   const { estadoID, adminID, fornecedorID, profissionalID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada, medicamentos } = req.body;
-  
+
   try {
     // Check required fields
     if (!estadoID || !adminID || !fornecedorID || !profissionalID || aprovadoPorAdministrador === undefined || encomendaCompleta === undefined || !dataEncomenda || !medicamentos || medicamentos.length === 0) {
@@ -45,7 +45,7 @@ router.post('/create', async (req, res) => {
     const pool = await getPool();
 
     // Start a transaction
-    const transaction = new pool.Transaction();
+    const transaction = pool.transaction(); // Use pool.transaction() instead of new pool.Transaction()
     await transaction.begin();
 
     try {
@@ -99,6 +99,7 @@ router.post('/create', async (req, res) => {
     res.status(400).send(`Error: ${error.message}`);
   }
 });
+
 
 
 // READ
