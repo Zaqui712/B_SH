@@ -302,14 +302,9 @@ router.post('/approve/:requisicaoID', async (req, res) => {
     console.log('Requisicao approved successfully:', { requisicaoID });
     res.status(200).json({ message: 'Requisicao approved successfully', requisicaoID });
   } catch (error) {
-    // Rollback the transaction in case of error
-    if (transaction) {
-      console.error('Rolling back transaction due to error...');
-      await transaction.rollback();
-    }
-
+    if (transaction) await transaction.rollback();
     console.error('Error approving requisicao:', error.message);
-    res.status(500).json({ error: 'Error approving requisicao', details: error.message });
+    res.status(500).json({ error: 'Error approving requisicao' });
   }
 });
 
