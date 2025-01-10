@@ -252,24 +252,27 @@ router.post('/approve/:requisicaoID', async (req, res) => {
   }
 
   const pool = await getPool();
-  
-  let transaction; // Declare transaction outside the try-catch block
+
+  let transaction;
   
   try {
     // Start the transaction
     transaction = pool.transaction();
     await transaction.begin();
 
+    // Ensure 'aprovadoPorAdministrador' is provided, default to 1 if not
+    const status = aprovadoPorAdministrador === undefined ? 1 : aprovadoPorAdministrador;
+
     // Update the status of the requisicao to approved
     const approveQuery = `UPDATE SERVICOSDB.dbo.Requisicao 
       SET aprovadoPorAdministrador = @aprovadoPorAdministrador
       WHERE requisicaoID = @requisicaoID`;
 
-    console.log('Executing approve query:', approveQuery, { requisicaoID, aprovadoPorAdministrador });
+    console.log('Executing approve query:', approveQuery, { requisicaoID, aprovadoPorAdministrador: status });
 
     const approveResult = await transaction.request()
       .input('requisicaoID', requisicaoID)
-      .input('aprovadoPorAdministrador', aprovadoPorAdministrador || 1) // 1 indicates approved
+      .input('aprovadoPorAdministrador', status)
       .query(approveQuery);
 
     if (approveResult.rowsAffected === 0) {
@@ -297,6 +300,7 @@ router.post('/approve/:requisicaoID', async (req, res) => {
     res.status(500).json({ error: 'Error approving requisicao', details: error.message });
   }
 });
+
 
 
 // Fetch pending approval requests with medication details
