@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require('express'); 
 const cors = require('cors'); // Import cors
 const router = express.Router();
 const { getPool } = require('../../db'); // Updated path
@@ -33,22 +33,23 @@ const verifyAdmin = async (req, res, next) => {
 // CREATE
 // Route to create a manual order
 router.post('/create', async (req, res) => {
-  const { estadoID, adminID, fornecedorID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada, medicamentos } = req.body;
+  const { estadoID, adminID, fornecedorID, profissionalID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada, medicamentos } = req.body;
   try {
-    if (!estadoID || !adminID || !fornecedorID || aprovadoPorAdministrador === undefined || encomendaCompleta === undefined || !dataEncomenda || !medicamentos || medicamentos.length === 0) {
+    if (!estadoID || !adminID || !fornecedorID || !profissionalID || aprovadoPorAdministrador === undefined || encomendaCompleta === undefined || !dataEncomenda || !medicamentos || medicamentos.length === 0) {
       throw new Error('All fields are required');
     }
 
     const pool = await getPool();
     const createOrderQuery = `
-      INSERT INTO SERVICOSDB.dbo.Encomenda (estadoID, adminID, fornecedorID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada)
-      VALUES (@estadoID, @adminID, @fornecedorID, @aprovadoPorAdministrador, @encomendaCompleta, @dataEncomenda, @dataEntrega, @quantidadeEnviada)
+      INSERT INTO SERVICOSDB.dbo.Encomenda (estadoID, adminID, fornecedorID, profissionalID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada)
+      VALUES (@estadoID, @adminID, @fornecedorID, @profissionalID, @aprovadoPorAdministrador, @encomendaCompleta, @dataEncomenda, @dataEntrega, @quantidadeEnviada)
       OUTPUT INSERTED.encomendaID
     `;
     const createOrderResult = await pool.request()
       .input('estadoID', estadoID)
       .input('adminID', adminID)
       .input('fornecedorID', fornecedorID)
+      .input('profissionalID', profissionalID) // Add profissionalID here
       .input('aprovadoPorAdministrador', aprovadoPorAdministrador)
       .input('encomendaCompleta', encomendaCompleta)
       .input('dataEncomenda', dataEncomenda)
@@ -82,10 +83,11 @@ router.get('/all', async (req, res) => {
   try {
     const pool = await getPool();
     const query = `
-      SELECT e.*, a.nomeProprio, a.ultimoNome, f.nomeFornecedor
+      SELECT e.*, a.nomeProprio, a.ultimoNome, f.nomeFornecedor, p.nomeProprio AS profissionalNome, p.ultimoNome AS profissionalUltimoNome
       FROM SERVICOSDB.dbo.Encomenda e
       JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
       JOIN SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
+      LEFT JOIN SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID
     `;
     const result = await pool.request().query(query);
     res.json(result.recordset);
@@ -99,9 +101,10 @@ router.get('/pending-approval', async (req, res) => {
   try {
     const pool = await getPool();
     const query = `
-      SELECT e.*, a.nomeProprio, a.ultimoNome
+      SELECT e.*, a.nomeProprio, a.ultimoNome, p.nomeProprio AS profissionalNome, p.ultimoNome AS profissionalUltimoNome
       FROM SERVICOSDB.dbo.Encomenda e
       JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
+      LEFT JOIN SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID
       WHERE e.aprovadoPorAdministrador = 0
     `;
     const result = await pool.request().query(query);

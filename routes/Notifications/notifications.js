@@ -30,11 +30,13 @@ const Alerts = async (req, res) => {
            e.estadoID, e.encomendaCompleta, e.dataEntrega,
            a.nomeProprio, a.ultimoNome,
            es.descricao AS estadoDescricao,  -- To include the state description
-           f.nomeFornecedor, f.contactoFornecedor
+           f.nomeFornecedor, f.contactoFornecedor,
+           p.nomeProprio AS profissionalNome, p.ultimoNome AS profissionalUltimoNome  -- Include the professional details
     FROM SERVICOSDB.dbo.Encomenda e
     JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
     JOIN SERVICOSDB.dbo.Estado es ON e.estadoID = es.estadoID  -- Joining Estado to get the state description
     JOIN SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID  -- Joining Fornecedor to get supplier info
+    JOIN SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID  -- Join with Profissional_De_Saude
     WHERE e.aprovadoPorAdministrador = 0;
   `;
 
