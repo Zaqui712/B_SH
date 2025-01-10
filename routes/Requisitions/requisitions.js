@@ -253,17 +253,17 @@ router.post('/approve/:requisicaoID', async (req, res) => {
 
   const pool = await getPool();
   
+  let transaction; // Declare transaction outside the try-catch block
+  
   try {
     // Start the transaction
-    const transaction = pool.transaction();
+    transaction = pool.transaction();
     await transaction.begin();
 
     // Update the status of the requisicao to approved
-    const approveQuery = `
-      UPDATE SERVICOSDB.dbo.Requisicao 
+    const approveQuery = `UPDATE SERVICOSDB.dbo.Requisicao 
       SET aprovadoPorAdministrador = @aprovadoPorAdministrador
-      WHERE requisicaoID = @requisicaoID
-    `;
+      WHERE requisicaoID = @requisicaoID`;
 
     console.log('Executing approve query:', approveQuery, { requisicaoID, aprovadoPorAdministrador });
 
@@ -286,14 +286,18 @@ router.post('/approve/:requisicaoID', async (req, res) => {
     res.status(200).json({ message: 'Requisicao approved successfully', requisicaoID });
   } catch (error) {
     // Rollback the transaction in case of error
-    console.error('Rolling back transaction due to error...');
-    await transaction.rollback();
+    if (transaction) {
+      console.error('Rolling back transaction due to error...');
+      await transaction.rollback();
+    }
+
     console.error('Error approving requisicao:', error.message);
 
     // Respond with error
     res.status(500).json({ error: 'Error approving requisicao', details: error.message });
   }
 });
+
 
 // Fetch pending approval requests with medication details
 router.get('/pending-approval', async (req, res) => {
