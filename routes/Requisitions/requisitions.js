@@ -223,13 +223,22 @@ router.get('/all', async (req, res) => {
     res.status(500).json({ error: 'Error fetching requisitions' });
   }
 });
+
 //UPDATE
 //APPROVE
 router.post('/approve/:requisicaoID', async (req, res) => {
-  const { requisicaoID } = req.params;
+  let { requisicaoID } = req.params;
   const { aprovadoPorAdministrador } = req.body;
 
   console.log(`Approving request with requisicaoID: ${requisicaoID}`);
+
+  // Clean up the requisicaoID by removing any non-numeric characters or leading/trailing whitespace
+  requisicaoID = requisicaoID.trim(); // Remove any leading/trailing whitespace or newline
+  requisicaoID = parseInt(requisicaoID, 10); // Convert it to a number
+
+  if (isNaN(requisicaoID)) {
+    return res.status(400).json({ error: 'Invalid requisicaoID. It must be an integer.' });
+  }
 
   const token = req.headers.authorization?.split(' ')[1];
 
