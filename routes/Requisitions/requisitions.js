@@ -223,9 +223,77 @@ router.get('/all', async (req, res) => {
     res.status(500).json({ error: 'Error fetching requisitions' });
   }
 });
+//UPDATE
+//APPROVE
+router.post('/approve/:requisicaoID', async (req, res) => {
+  const { requisicaoID } = req.params; // Extract requisicaoID from URL params
+  const { aprovadoPorAdministrador } = req.body; // You can also send this value in the body
 
+  console.log(`Approving request with requisicaoID: ${requisicaoID}`);
 
+  // Extract the token from the Authorization header
+  const token = req.headers.authorization?.split(' ')[1];
 
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+
+  const { userID, isAdmin } = decoded;
+
+  if (!userID || !isAdmin) {
+    return res.status(403).json({ error: 'Forbidden: Only admin can approve' });
+  }
+
+  const pool = await getPool();
+  
+  try {
+    // Start the transaction
+    const transaction = pool.transaction();
+    await transaction.begin();
+
+    // Update the status of the requisicao to approved
+    const approveQuery = `
+      UPDATE SERVICOSDB.dbo.Requisicao 
+      SET aprovadoPorAdministrador = @aprovadoPorAdministrador
+      WHERE requisicaoID = @requisicaoID
+    `;
+
+    console.log('Executing approve query:', approveQuery, { requisicaoID, aprovadoPorAdministrador });
+
+    const approveResult = await transaction.request()
+      .input('requisicaoID', requisicaoID)
+      .input('aprovadoPorAdministrador', aprovadoPorAdministrador || 1) // 1 indicates approved
+      .query(approveQuery);
+
+    if (approveResult.rowsAffected === 0) {
+      console.error(`No requisicao found with requisicaoID: ${requisicaoID}`);
+      throw new Error('Requisicao not found or already approved');
+    }
+
+    // Commit the transaction
+    console.log('Committing approval transaction...');
+    await transaction.commit();
+
+    // Respond with success
+    console.log('Requisicao approved successfully:', { requisicaoID });
+    res.status(200).json({ message: 'Requisicao approved successfully', requisicaoID });
+  } catch (error) {
+    // Rollback the transaction in case of error
+    console.error('Rolling back transaction due to error...');
+    await transaction.rollback();
+    console.error('Error approving requisicao:', error.message);
+
+    // Respond with error
+    res.status(500).json({ error: 'Error approving requisicao', details: error.message });
+  }
+});
 
 // Fetch pending approval requests with medication details
 router.get('/pending-approval', async (req, res) => {
