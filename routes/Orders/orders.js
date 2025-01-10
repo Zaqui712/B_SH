@@ -84,32 +84,33 @@ router.get('/all', async (req, res) => {
     const pool = await getPool();
     const query = `
       SELECT 
-        e.encomendaID,
-        e.estadoID,
-        e.adminID,
-        e.fornecedorID,
-        e.encomendaCompleta,
-        e.aprovadoPorAdministrador,
-        e.dataEncomenda,
-        e.dataEntrega,
-        e.quantidadeEnviada,
-        e.profissionalID,
-        a.nomeProprio AS adminNome,
-        a.ultimoNome AS adminUltimoNome,
-        f.nomeFornecedor,
-        p.nomeProprio AS profissionalNome,
-        p.ultimoNome AS profissionalUltimoNome,
-        sh.nomeServico AS servicoNome  -- Only retrieving the name of the Servico_Hospitalar
-      FROM 
-        SERVICOSDB.dbo.Encomenda e
-      JOIN 
-        SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
-      JOIN 
-        SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
-      LEFT JOIN 
-        SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID
-      LEFT JOIN 
-        SERVICOSDB.dbo.Servico_Hospitalar sh ON p.servicoID = sh.servicoID
+  e.encomendaID,
+  e.estadoID,
+  e.adminID,
+  e.fornecedorID,
+  e.encomendaCompleta,
+  e.aprovadoPorAdministrador,
+  e.dataEncomenda,
+  e.dataEntrega,
+  e.quantidadeEnviada,
+  e.profissionalID,
+  a.nomeProprio AS adminNome,
+  a.ultimoNome AS adminUltimoNome,
+  f.nomeFornecedor,
+  p.nomeProprio AS profissionalNome,
+  p.ultimoNome AS profissionalUltimoNome,
+  sh.nomeServico AS servicoNome
+FROM 
+  SERVICOSDB.dbo.Encomenda e
+LEFT JOIN 
+  SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
+LEFT JOIN 
+  SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
+LEFT JOIN 
+  SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID
+LEFT JOIN 
+  SERVICOSDB.dbo.Servico_Hospitalar sh ON p.servicoID = sh.servicoID
+
     `;
     
     console.log('Executing query:', query); // Log the query for debugging
