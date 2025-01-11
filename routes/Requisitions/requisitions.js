@@ -228,20 +228,17 @@ router.get('/all', async (req, res) => {
 
 // APPROVE
 // APPROVE
+// APPROVE
 router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
   let { requisicaoID } = req.params;
-  const { aprovadoPorAdministrador } = req.body;
 
-  console.log(`Approving request with requisicaoID: ${requisicaoID}`);
-
-  requisicaoID = parseInt(requisicaoID, 10); // Ensure requisicaoID is an integer
-
+  // Ensure requisicaoID is an integer
+  requisicaoID = parseInt(requisicaoID, 10);
   if (isNaN(requisicaoID)) {
     return res.status(400).json({ error: 'Invalid requisicaoID. It must be an integer.' });
   }
 
   const token = req.headers.authorization?.split(' ')[1];
-
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized: No token provided' });
   }
@@ -254,7 +251,6 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
   }
 
   const { userID, isAdmin } = decoded;
-
   if (!userID || !isAdmin) {
     return res.status(403).json({ error: 'Forbidden: Only admin can approve' });
   }
@@ -268,11 +264,10 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
     await transaction.begin();
 
     // Validate requisicaoID exists and is pending approval
-    const validateQuery = `
-      SELECT COUNT(*) AS requisicaoExists
-      FROM SERVICOSDB.dbo.Requisicao
-      WHERE requisicaoID = @requisicaoID AND aprovadoPorAdministrador = 0
-    `;
+    const validateQuery = 
+      `SELECT COUNT(*) AS requisicaoExists 
+       FROM SERVICOSDB.dbo.Requisicao
+       WHERE requisicaoID = @requisicaoID AND aprovadoPorAdministrador = 0`;
     const validateResult = await transaction.request()
       .input('requisicaoID', requisicaoID)
       .query(validateQuery);
@@ -282,19 +277,19 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
       throw new Error('Requisicao not found or already approved');
     }
 
-    const status = aprovadoPorAdministrador === undefined ? 1 : aprovadoPorAdministrador;
+    // Set the approval status to 1 (approved)
+    const aprovadoPorAdministrador = 1;
 
     // Execute the approval update and set adminID to the user approving the request
-    const approveQuery = `
-      UPDATE SERVICOSDB.dbo.Requisicao
-      SET aprovadoPorAdministrador = @aprovadoPorAdministrador, adminID = @adminID
-      WHERE requisicaoID = @requisicaoID
-    `;
-    console.log('Executing approval query:', approveQuery, { requisicaoID, aprovadoPorAdministrador: status });
+    const approveQuery = 
+      `UPDATE SERVICOSDB.dbo.Requisicao
+       SET aprovadoPorAdministrador = @aprovadoPorAdministrador, adminID = @adminID
+       WHERE requisicaoID = @requisicaoID`;
+    console.log('Executing approval query:', approveQuery, { requisicaoID, aprovadoPorAdministrador });
 
     const approveResult = await transaction.request()
       .input('requisicaoID', requisicaoID)
-      .input('aprovadoPorAdministrador', status)
+      .input('aprovadoPorAdministrador', aprovadoPorAdministrador)
       .input('adminID', userID) // Set the adminID to the one approving the order
       .query(approveQuery);
 
@@ -304,11 +299,10 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
     }
 
     // Update estadoID to 3 after approval (assuming 3 is for approved state)
-    const updateEstadoQuery = `
-      UPDATE SERVICOSDB.dbo.Requisicao
-      SET estadoID = 3
-      WHERE requisicaoID = @requisicaoID
-    `;
+    const updateEstadoQuery = 
+      `UPDATE SERVICOSDB.dbo.Requisicao
+       SET estadoID = 3
+       WHERE requisicaoID = @requisicaoID`;
     console.log('Executing update estadoID query:', updateEstadoQuery, { requisicaoID });
 
     const updateEstadoResult = await transaction.request()
@@ -340,18 +334,18 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
   }
 });
 
+
+// CANCEL
 // CANCEL
 router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
   let { requisicaoID } = req.params;
 
   requisicaoID = parseInt(requisicaoID, 10); // Ensure requisicaoID is an integer
-
   if (isNaN(requisicaoID)) {
     return res.status(400).json({ error: 'Invalid requisicaoID. It must be an integer.' });
   }
 
   const token = req.headers.authorization?.split(' ')[1];
-
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized: No token provided' });
   }
@@ -364,7 +358,6 @@ router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
   }
 
   const { userID, isAdmin } = decoded;
-
   if (!userID || !isAdmin) {
     return res.status(403).json({ error: 'Forbidden: Only admin can cancel' });
   }
@@ -378,11 +371,10 @@ router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
     await transaction.begin();
 
     // Validate requisicaoID exists
-    const validateQuery = `
-      SELECT COUNT(*) AS requisicaoExists
-      FROM SERVICOSDB.dbo.Requisicao
-      WHERE requisicaoID = @requisicaoID
-    `;
+    const validateQuery = 
+      `SELECT COUNT(*) AS requisicaoExists
+       FROM SERVICOSDB.dbo.Requisicao
+       WHERE requisicaoID = @requisicaoID`;
     const validateResult = await transaction.request()
       .input('requisicaoID', requisicaoID)
       .query(validateQuery);
@@ -393,11 +385,10 @@ router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
     }
 
     // Execute the cancellation update and set adminID to the user canceling the request
-    const cancelQuery = `
-      UPDATE SERVICOSDB.dbo.Requisicao
-      SET estadoID = 2, adminID = @adminID -- Assuming 2 is canceled state
-      WHERE requisicaoID = @requisicaoID
-    `;
+    const cancelQuery = 
+      `UPDATE SERVICOSDB.dbo.Requisicao
+       SET estadoID = 2, adminID = @adminID -- Assuming 2 is canceled state
+       WHERE requisicaoID = @requisicaoID`;
     console.log('Executing cancel query:', cancelQuery, { requisicaoID });
 
     const cancelResult = await transaction.request()
@@ -430,58 +421,6 @@ router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
   }
 });
 
-
-
-// Fetch pending approval requests with medication details
-router.get('/pending-approval', async (req, res) => {
-  try {
-    const pool = await getPool();
-    const query = `
-      SELECT req.*, 
-             pro.nomeProprio, 
-             pro.ultimoNome, 
-             mr.medicamentoID, 
-             mr.quantidade, 
-             med.nomeMedicamento
-      FROM SERVICOSDB.dbo.Requisicao req
-      JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
-      LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
-      LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
-      WHERE req.aprovadoPorAdministrador = 0
-    `;
-    const result = await pool.request().query(query);
-    res.status(200).json(result.recordset);
-  } catch (error) {
-    console.error('Error fetching pending requests:', error.message);
-    res.status(500).json({ error: 'Error fetching pending requests' });
-  }
-});
-
-// Fetch requests by health unit with medication details
-router.get('/list/:servicoID', async (req, res) => {
-  const { servicoID } = req.params;
-  try {
-    const pool = await getPool();
-    const query = `
-      SELECT req.*, 
-             pro.nomeProprio, 
-             pro.ultimoNome, 
-             mr.medicamentoID, 
-             mr.quantidade, 
-             med.nomeMedicamento
-      FROM SERVICOSDB.dbo.Requisicao req
-      JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
-      LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
-      LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
-      WHERE pro.servicoID = @servicoID
-    `;
-    const result = await pool.request().input('servicoID', servicoID).query(query);
-    res.status(200).json(result.recordset);
-  } catch (error) {
-    console.error('Error fetching requests for health unit:', error.message);
-    res.status(500).json({ error: 'Error fetching requests for health unit' });
-  }
-});
 
 // DELETE
 router.delete('/delete/:requestID', async (req, res) => {
