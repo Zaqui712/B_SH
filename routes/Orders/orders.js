@@ -35,25 +35,24 @@ const verifyAdmin = async (req, res, next) => {
 router.post('/create', async (req, res) => {
   const { estadoID, fornecedorID, dataEncomenda, dataEntrega, quantidadeEnviada, medicamentos } = req.body;
 
-  // Extract token from Authorization header
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized: No token provided' });
-  }
+  // Extract token and validate
+const token = req.headers.authorization?.split(' ')[1];
+if (!token) {
+  return res.status(401).json({ error: 'Unauthorized: No token provided' });
+}
 
-  let decoded;
-  try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-  } catch (err) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-  }
+try {
+  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
 
-  const { userID, isAdmin } = decoded;
-
-  // Only health professionals can create orders
-  if (isAdmin) {
+  // Check if user is admin
+  if (decoded.isAdmin) {
     return res.status(403).json({ error: 'Only health professionals can create orders' });
   }
+
+  req.userID = decoded.userID;  // Attach user info for further use
+} catch (err) {
+  return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+}
 
   const profissionalID = userID; // Use userID as profissionalID
 
