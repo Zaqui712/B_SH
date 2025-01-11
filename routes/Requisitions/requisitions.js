@@ -36,12 +36,14 @@ const verifyAdmin = async (req, res, next) => {
     return res.status(403).json({ error: 'Forbidden: Only admin can access this resource' });
   }
 
-  // Optionally, you can check if the userID exists in the Users table, though it's usually redundant with JWT verification
+  // Now we use the 'Administrador' table to check if the user is an admin
   try {
     const pool = await getPool();
     const query = `
-      SELECT * FROM dbo.Users  -- Ensure this matches the actual table name and schema
-      WHERE userID = @userID AND role = 'admin'`;  // Query to check if the user is an admin
+      SELECT a.adminID, c.utilizadorAdministrador 
+      FROM dbo.Administrador a
+      JOIN dbo.Credenciais c ON a.credenciaisID = c.credenciaisID
+      WHERE a.adminID = @userID AND c.utilizadorAdministrador = 1`;  // Ensure this matches the schema and fields
 
     const result = await pool.request().input('userID', userID).query(query);
 
@@ -53,16 +55,18 @@ const verifyAdmin = async (req, res, next) => {
     // If everything is okay, proceed to the next middleware or route handler
     next();
   } catch (error) {
+    console.error('Error fetching admin status:', error.message);
+    
+    // Additional handling for SQL errors or connection issues
     if (error.code === 'ESOCKET') {
-      // Database connection error
       return res.status(500).json({ error: 'Database connection failed. Please try again later.' });
-    } else {
-      // General error
-      console.error('Database query error:', error.message);
-      return res.status(500).json({ error: 'Error fetching admin status', details: error.message });
     }
+    
+    // General error
+    return res.status(500).json({ error: 'Error fetching admin status', details: error.message });
   }
 };
+
 
 
 
