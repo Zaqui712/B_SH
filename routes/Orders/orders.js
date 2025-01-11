@@ -162,10 +162,10 @@ router.put('/cancel/:encomendaID', verifyToken, verifyAdmin, async (req, res) =>
   try {
     const pool = await getPool();
 
-    // Update the estadoID to 2 to mark as canceled/deleted
+    // Update the estadoID to 2 and encomendaCompleta to true to mark as canceled/deleted
     const cancelOrderQuery = `
       UPDATE SERVICOSDB.dbo.Encomenda
-      SET estadoID = 2
+      SET estadoID = 2, encomendaCompleta = 1
       WHERE encomendaID = @encomendaID
     `;
     const result = await pool.request()
@@ -173,7 +173,7 @@ router.put('/cancel/:encomendaID', verifyToken, verifyAdmin, async (req, res) =>
       .query(cancelOrderQuery);
 
     if (result.rowsAffected[0] > 0) {
-      res.json({ message: 'Order canceled successfully. State updated to 2.' });
+      res.json({ message: 'Order canceled successfully. State updated to 2 and encomendaCompleta set to true.' });
     } else {
       res.json({ message: 'Order not found or already canceled.' });
     }
@@ -184,8 +184,9 @@ router.put('/cancel/:encomendaID', verifyToken, verifyAdmin, async (req, res) =>
 });
 
 
+
 // DELETE: Delete an order (only administrators)
-router.delete('/orders/:encomendaID', verifyToken, verifyAdmin, async (req, res) => {
+router.delete('/delete/:encomendaID', verifyToken, verifyAdmin, async (req, res) => {
   const { encomendaID } = req.params;
 
   try {
