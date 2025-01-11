@@ -33,73 +33,98 @@ const verifyAdmin = async (req, res, next) => {
 // CREATE
 // Route to create a manual order
 router.post('/create', async (req, res) => {
-  const { estadoID, adminID, fornecedorID, profissionalID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada, medicamentos } = req.body;
+  const { estadoID, fornecedorID, dataEncomenda, dataEntrega, quantidadeEnviada, medicamentos } = req.body;
+
+  // Extract token from Authorization header
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+
+  const { userID, isAdmin } = decoded;
+
+  // Only health professionals can create orders
+  if (isAdmin) {
+    return res.status(403).json({ error: 'Only health professionals can create orders' });
+  }
+
+  const profissionalID = userID; // Use userID as profissionalID
 
   try {
-    // Check required fields
-    if (!estadoID || !adminID || !fornecedorID || !profissionalID || aprovadoPorAdministrador === undefined || encomendaCompleta === undefined || !dataEncomenda || !medicamentos || medicamentos.length === 0) {
-      throw new Error('All fields are required');
+    const pool = await getPool();
+    const transaction = pool.transaction();
+
+    // Check if estadoID exists
+    const estadoCheckQuery = 'SELECT COUNT(*) AS estadoCount FROM SERVICOSDB.dbo.Estado WHERE estadoID = @estadoID';
+    const estadoCheckResult = await pool.request()
+      .input('estadoID', estadoID)
+      .query(estadoCheckQuery);
+
+    if (estadoCheckResult.recordset.length === 0 || estadoCheckResult.recordset[0].estadoCount === 0) {
+      return res.status(400).json({ error: `estadoID ${estadoID} does not exist in Estado table` });
     }
 
-    // Get database pool
-    const pool = await getPool();
-
-    // Start a transaction
-    const transaction = pool.transaction(); // Use pool.transaction() instead of new pool.Transaction()
+    // Start transaction
     await transaction.begin();
 
-    try {
-      // Create the order and get the inserted ID using OUTPUT clause
-      const createOrderQuery = `
-        INSERT INTO SERVICOSDB.dbo.Encomenda 
-        (estadoID, adminID, fornecedorID, profissionalID, aprovadoPorAdministrador, encomendaCompleta, dataEncomenda, dataEntrega, quantidadeEnviada)
-        OUTPUT INSERTED.encomendaID
-        VALUES (@estadoID, @adminID, @fornecedorID, @profissionalID, @aprovadoPorAdministrador, @encomendaCompleta, @dataEncomenda, @dataEntrega, @quantidadeEnviada)
-      `;
-      
-      const createOrderResult = await transaction.request()
-        .input('estadoID', estadoID)
-        .input('adminID', adminID)
-        .input('fornecedorID', fornecedorID)
-        .input('profissionalID', profissionalID)
-        .input('aprovadoPorAdministrador', aprovadoPorAdministrador)
-        .input('encomendaCompleta', encomendaCompleta)
-        .input('dataEncomenda', dataEncomenda)
-        .input('dataEntrega', dataEntrega)
-        .input('quantidadeEnviada', quantidadeEnviada)
-        .query(createOrderQuery);
-        
-      // Retrieve the new order ID
-      const newOrderID = createOrderResult.recordset[0].encomendaID;
+    // Insert order and return order ID
+    const createOrderQuery = `
+      INSERT INTO SERVICOSDB.dbo.Encomenda 
+      (estadoID, fornecedorID, profissionalID, dataEncomenda, dataEntrega, quantidadeEnviada)
+      OUTPUT INSERTED.encomendaID
+      VALUES (@estadoID, @fornecedorID, @profissionalID, @dataEncomenda, @dataEntrega, @quantidadeEnviada)
+    `;
+    const createOrderResult = await transaction.request()
+      .input('estadoID', estadoID)
+      .input('fornecedorID', fornecedorID)
+      .input('profissionalID', profissionalID)
+      .input('dataEncomenda', dataEncomenda)
+      .input('dataEntrega', dataEntrega || null)
+      .input('quantidadeEnviada', quantidadeEnviada)
+      .query(createOrderQuery);
 
-      // Link medications to the order
+    const newOrderID = createOrderResult.recordset[0].encomendaID;
+
+    // Insert medications linked to the order
+    if (Array.isArray(medicamentos) && medicamentos.length > 0) {
       for (const med of medicamentos) {
+        const { medicamentoID, quantidade } = med;
+
+        if (!medicamentoID || !quantidade) {
+          return res.status(400).json({ error: 'Each medication must have an ID and quantity' });
+        }
+
         const linkMedicationQuery = `
           INSERT INTO SERVICOSDB.dbo.Medicamento_Encomenda (medicamentoID, encomendaID, quantidade)
           VALUES (@medicamentoID, @encomendaID, @quantidade)
         `;
-        
         await transaction.request()
-          .input('medicamentoID', med.medicamentoID)
+          .input('medicamentoID', medicamentoID)
           .input('encomendaID', newOrderID)
-          .input('quantidade', med.quantidade)
+          .input('quantidade', quantidade)
           .query(linkMedicationQuery);
       }
-
-      // Commit the transaction
-      await transaction.commit();
-      
-      res.status(201).send('Order created successfully');
-    } catch (error) {
-      // Rollback the transaction in case of error
-      await transaction.rollback();
-      res.status(400).send(`Error creating order: ${error.message}`);
     }
 
+    // Commit transaction
+    await transaction.commit();
+
+    res.status(201).json({ message: 'Order created successfully', encomendaID: newOrderID });
   } catch (error) {
-    res.status(400).send(`Error: ${error.message}`);
+    // Rollback transaction on error
+    if (transaction) await transaction.rollback();
+    console.error('Error creating order:', error.message);
+    res.status(500).json({ error: 'Error creating order', details: error.message });
   }
 });
+
 
 
 
