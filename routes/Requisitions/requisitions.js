@@ -1,12 +1,12 @@
 const express = require('express');
-const cors = require('cors'); // Import cors
+const cors = require('cors');
 const router = express.Router();
-const { getPool } = require('../../db'); // Updated path
+const { getPool } = require('../../db');
 const jwt = require('jsonwebtoken');
 
 // Enable CORS for all origins
 const corsOptions = {
-  origin: '*', // Allow all origins (you can restrict this to specific domains in production)
+  origin: '*', // Allow all origins (adjust for production)
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
@@ -16,14 +16,14 @@ router.use(cors(corsOptions));
 
 // Middleware to verify if the user is an administrator
 const verifyAdmin = async (req, res, next) => {
-  const { adminID } = req.body;
+  const { adminID } = req.body;  // Extracting adminID from request body
   try {
     const pool = await getPool();
     const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.dbo.Credenciais WHERE credenciaisID = @adminID';
     const result = await pool.request().input('adminID', adminID).query(query);
 
     if (result.recordset.length > 0 && result.recordset[0].utilizadorAdministrador) {
-      next();
+      next(); // Proceed if the user is an admin
     } else {
       res.status(403).send('Access denied. Only administrators can approve or cancel requests.');
     }
@@ -33,15 +33,11 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
-
-router.post('/create', async (req, res) => { 
+router.post('/create', async (req, res) => {
   const { estadoID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos, servicoHospitalarRemetenteID } = req.body;
-
   console.log('Received request body:', req.body);
 
-  // Extract the token from the Authorization header
   const token = req.headers.authorization?.split(' ')[1];
-
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized: No token provided' });
   }
@@ -59,14 +55,13 @@ router.post('/create', async (req, res) => {
     return res.status(400).json({ error: 'User ID not found in token' });
   }
 
-  const profissionalID = !isAdmin ? userID : null; // Use userID as profissionalID if not admin
-  const adminID = isAdmin ? userID : null; // Use userID as adminID if admin
+  const profissionalID = !isAdmin ? userID : null;
+  const adminID = isAdmin ? userID : null;
 
   const pool = await getPool();
   const transaction = pool.transaction();
 
   try {
-    // Check if estadoID exists in Estado table
     const estadoCheckQuery = 'SELECT COUNT(*) AS estadoCount FROM SERVICOSDB.dbo.Estado WHERE estadoID = @estadoID';
     console.log('Executing estado check query:', estadoCheckQuery, { estadoID });
     const estadoCheckResult = await pool.request()
@@ -80,11 +75,8 @@ router.post('/create', async (req, res) => {
       return res.status(400).json({ error: `estadoID ${estadoID} does not exist in Estado table` });
     }
 
-    // Start the transaction
-    console.log('Starting transaction...');
     await transaction.begin();
 
-    // Insert into Requisicao table including servicoHospitalarRemetenteID
     const requisicaoQuery = `
       INSERT INTO SERVICOSDB.dbo.Requisicao 
       (estadoID, profissionalID, adminID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, servicoHospitalarRemetenteID)
@@ -101,7 +93,7 @@ router.post('/create', async (req, res) => {
       .input('requisicaoCompleta', requisicaoCompleta || 0)
       .input('dataRequisicao', dataRequisicao)
       .input('dataEntrega', dataEntrega || null)
-      .input('servicoHospitalarRemetenteID', servicoHospitalarRemetenteID || 0)  // Default to 0 if not provided
+      .input('servicoHospitalarRemetenteID', servicoHospitalarRemetenteID || 0)
       .query(requisicaoQuery);
 
     console.log('Requisicao insert result:', requisicaoResult);
@@ -114,17 +106,13 @@ router.post('/create', async (req, res) => {
     const requisicaoID = requisicaoResult.recordset[0].requisicaoID;
     console.log('Created requisicaoID:', requisicaoID);
 
-    // Ensure 'medicamentos' is defined and an array, and check if it has at least one element
     if (Array.isArray(medicamentos) && medicamentos.length > 0) {
       console.log('Processing medicamentos:', medicamentos);
       for (const medicamento of medicamentos) {
         let { medicamentoID, quantidade } = medicamento;
 
-        // Ensure medicamentoID and quantidade are present and valid
         if (medicamentoID && quantidade) {
-          // Check if medicamentoID is a number or a string (name)
           if (isNaN(medicamentoID)) {
-            // If it's not a number, assume it's a name and look up the ID
             const medicamentoQuery = 'SELECT medicamentoID FROM SERVICOSDB.dbo.Medicamento WHERE nomeMedicamento = @nome';
             console.log('Executing medicamento name lookup query:', medicamentoQuery, { nome: medicamentoID });
 
@@ -167,23 +155,138 @@ router.post('/create', async (req, res) => {
       console.warn('Medicamentos array is empty or not defined');
     }
 
-    // Commit the transaction
-    console.log('Committing transaction...');
     await transaction.commit();
-
-    // Respond with success
     console.log('Request created successfully:', { requisicaoID });
     res.status(201).json({ message: 'Request created successfully', requisicaoID });
   } catch (error) {
-    // Rollback the transaction in case of error
-    console.error('Rolling back transaction due to error...');
     await transaction.rollback();
     console.error('Error creating request:', error.message);
-
-    // Respond with error
     res.status(500).json({ error: 'Error creating request', details: error.message });
   }
 });
+
+// Read all requisitions
+router.get('/all', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const query = `
+      SELECT 
+          R.requisicaoID,
+          R.estadoID,
+          R.profissionalID,
+          R.adminID,
+          R.aprovadoPorAdministrador,
+          R.requisicaoCompleta,
+          R.dataRequisicao,
+          R.dataEntrega,
+          P.nomeProprio AS nomeProfissional,
+          P.ultimoNome AS ultimoNomeProfissional,
+          P.contacto AS contactoProfissional,
+          SH.servicoID,
+          SH.nomeServico,
+          SH.servicoDisponivel24horas,
+          SRH.nomeServico AS nomeServicoHospitalarRemetente
+      FROM 
+          SERVICOSDB.dbo.Requisicao R
+      JOIN 
+          SERVICOSDB.dbo.Profissional_De_Saude P ON R.profissionalID = P.profissionalID
+      JOIN 
+          SERVICOSDB.dbo.Servico_Hospitalar SH ON P.servicoID = SH.servicoID
+      LEFT JOIN 
+          SERVICOSDB.dbo.Servico_Hospitalar SRH ON R.servicoHospitalarRemetenteID = SRH.servicoID
+    `;
+    const result = await pool.request().query(query);
+    res.status(200).json(result.recordset);
+  } catch (error) {
+    console.error('Error fetching requisitions:', error.message);
+    res.status(500).json({ error: 'Error fetching requisitions' });
+  }
+});
+
+// Approve request
+router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
+  let { requisicaoID } = req.params;
+  requisicaoID = parseInt(requisicaoID, 10);
+  if (isNaN(requisicaoID)) {
+    return res.status(400).json({ error: 'Invalid requisicaoID. It must be an integer.' });
+  }
+
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+
+  const { userID, isAdmin } = decoded;
+  if (!userID || !isAdmin) {
+    return res.status(403).json({ error: 'Forbidden: Only admin can approve' });
+  }
+
+  const pool = await getPool();
+  let transaction;
+
+  try {
+    transaction = pool.transaction();
+    await transaction.begin();
+
+    const validateQuery = `
+      SELECT COUNT(*) AS requisicaoExists 
+      FROM SERVICOSDB.dbo.Requisicao 
+      WHERE requisicaoID = @requisicaoID AND aprovadoPorAdministrador = 0`;
+    const validateResult = await transaction.request()
+      .input('requisicaoID', requisicaoID)
+      .query(validateQuery);
+
+    if (validateResult.recordset[0].requisicaoExists === 0) {
+      console.error(`Requisicao not found or already approved with requisicaoID: ${requisicaoID}`);
+      throw new Error('Requisicao not found or already approved');
+    }
+
+    const aprovadoPorAdministrador = 1;
+
+    const approveQuery = `
+      UPDATE SERVICOSDB.dbo.Requisicao 
+      SET aprovadoPorAdministrador = @aprovadoPorAdministrador, adminID = @adminID 
+      WHERE requisicaoID = @requisicaoID`;
+
+    const approveResult = await transaction.request()
+      .input('requisicaoID', requisicaoID)
+      .input('aprovadoPorAdministrador', aprovadoPorAdministrador)
+      .input('adminID', userID)
+      .query(approveQuery);
+
+    if (approveResult.rowsAffected === 0) {
+      console.error(`No requisicao found with requisicaoID: ${requisicaoID}`);
+      throw new Error('Requisicao not found or already approved');
+    }
+
+    const updateEstadoQuery = `
+      UPDATE SERVICOSDB.dbo.Requisicao 
+      SET estadoID = 3 
+      WHERE requisicaoID = @requisicaoID`;
+
+    await transaction.request()
+      .input('requisicaoID', requisicaoID)
+      .query(updateEstadoQuery);
+
+    await transaction.commit();
+    console.log(`Requisicao ${requisicaoID} approved successfully.`);
+    res.status(200).json({ message: `Requisicao ${requisicaoID} approved successfully.` });
+
+  } catch (error) {
+    if (transaction) await transaction.rollback();
+    console.error('Error approving requisicao:', error.message);
+    res.status(500).json({ error: 'Error approving requisicao', details: error.message });
+  }
+});
+
+module.exports = router;
 
 
 // READ
@@ -226,8 +329,59 @@ router.get('/all', async (req, res) => {
   }
 });
 
-// APPROVE
-// APPROVE
+
+// Fetch pending approval requests with medication details
+router.get('/pending-approval', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const query = `
+      SELECT req.*, 
+             pro.nomeProprio, 
+             pro.ultimoNome, 
+             mr.medicamentoID, 
+             mr.quantidade, 
+             med.nomeMedicamento
+      FROM SERVICOSDB.dbo.Requisicao req
+      JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
+      WHERE req.aprovadoPorAdministrador = 0
+    `;
+    const result = await pool.request().query(query);
+    res.status(200).json(result.recordset);
+  } catch (error) {
+    console.error('Error fetching pending requests:', error.message);
+    res.status(500).json({ error: 'Error fetching pending requests' });
+  }
+});
+
+// Fetch requests by health unit with medication details
+router.get('/list/:servicoID', async (req, res) => {
+  const { servicoID } = req.params;
+  try {
+    const pool = await getPool();
+    const query = `
+      SELECT req.*, 
+             pro.nomeProprio, 
+             pro.ultimoNome, 
+             mr.medicamentoID, 
+             mr.quantidade, 
+             med.nomeMedicamento
+      FROM SERVICOSDB.dbo.Requisicao req
+      JOIN SERVICOSDB.dbo.Profissional_De_Saude pro ON req.profissionalID = pro.profissionalID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento_Requisicao mr ON req.requisicaoID = mr.requisicaoID
+      LEFT JOIN SERVICOSDB.dbo.Medicamento med ON mr.medicamentoID = med.medicamentoID
+      WHERE pro.servicoID = @servicoID
+    `;
+    const result = await pool.request().input('servicoID', servicoID).query(query);
+    res.status(200).json(result.recordset);
+  } catch (error) {
+    console.error('Error fetching requests for health unit:', error.message);
+    res.status(500).json({ error: 'Error fetching requests for health unit' });
+  }
+});
+
+// UPDATE
 // APPROVE
 router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
   let { requisicaoID } = req.params;
@@ -473,6 +627,5 @@ router.delete('/delete/:requestID', async (req, res) => {
     res.status(500).json({ error: 'Error deleting request' });
   }
 });
-
 
 module.exports = router;
