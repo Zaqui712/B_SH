@@ -137,7 +137,7 @@ router.put('/approve/:encomendaID', verifyToken, verifyAdmin, async (req, res) =
     const pool = await getPool();
     const query = `
       UPDATE SERVICOSDB.dbo.Encomenda
-      SET aprovadoPorAdministrador = 1
+      SET aprovadoPorAdministrador = 1, estadoID = 3
       WHERE encomendaID = @encomendaID
     `;
     const result = await pool.request()
@@ -145,13 +145,41 @@ router.put('/approve/:encomendaID', verifyToken, verifyAdmin, async (req, res) =
       .query(query);
 
     if (result.rowsAffected[0] > 0) {
-      res.json({ message: 'Order approved successfully.' });
+      res.json({ message: 'Order approved successfully. State updated to 3.' });
     } else {
       res.json({ message: 'Order not found or already approved.' });
     }
   } catch (error) {
     console.error('Error approving order:', error.message);
     res.status(500).json({ error: 'Error approving order' });
+  }
+});
+
+//Cancel the Orders:
+router.put('/cancel/:encomendaID', verifyToken, verifyAdmin, async (req, res) => {
+  const { encomendaID } = req.params;
+
+  try {
+    const pool = await getPool();
+
+    // Update the estadoID to 2 to mark as canceled/deleted
+    const cancelOrderQuery = `
+      UPDATE SERVICOSDB.dbo.Encomenda
+      SET estadoID = 2
+      WHERE encomendaID = @encomendaID
+    `;
+    const result = await pool.request()
+      .input('encomendaID', encomendaID)
+      .query(cancelOrderQuery);
+
+    if (result.rowsAffected[0] > 0) {
+      res.json({ message: 'Order canceled successfully. State updated to 2.' });
+    } else {
+      res.json({ message: 'Order not found or already canceled.' });
+    }
+  } catch (error) {
+    console.error('Error canceling order:', error.message);
+    res.status(500).json({ error: 'Error canceling order' });
   }
 });
 
