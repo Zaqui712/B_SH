@@ -25,13 +25,14 @@ const verifyAdmin = async (req, res, next) => {
     if (result.recordset.length > 0 && result.recordset[0].utilizadorAdministrador) {
       next();
     } else {
-      res.status(403).send('Access denied. Only administrators can approve requests.');
+      res.status(403).send('Access denied. Only administrators can approve or cancel requests.');
     }
   } catch (error) {
     console.error('Error verifying admin:', error.message);
     res.status(400).send(error.message);
   }
 };
+
 
 router.post('/create', async (req, res) => { 
   const { estadoID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos, servicoHospitalarRemetenteID } = req.body;
@@ -225,18 +226,14 @@ router.get('/all', async (req, res) => {
   }
 });
 
-
-//UPDATE
-//APPROVE
-router.post('/approve/:requisicaoID', async (req, res) => {
+// APPROVE
+router.post('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
   let { requisicaoID } = req.params;
   const { aprovadoPorAdministrador } = req.body;
 
   console.log(`Approving request with requisicaoID: ${requisicaoID}`);
 
-  // Clean up the requisicaoID by removing any non-numeric characters or leading/trailing whitespace
-  requisicaoID = requisicaoID.trim(); // Remove any leading/trailing whitespace or newline
-  requisicaoID = parseInt(requisicaoID, 10); // Convert it to a number
+  requisicaoID = parseInt(requisicaoID, 10); // Ensure requisicaoID is an integer
 
   if (isNaN(requisicaoID)) {
     return res.status(400).json({ error: 'Invalid requisicaoID. It must be an integer.' });
@@ -286,10 +283,10 @@ router.post('/approve/:requisicaoID', async (req, res) => {
 
     const status = aprovadoPorAdministrador === undefined ? 1 : aprovadoPorAdministrador;
 
-    // Execute the approval update
+    // Execute the approval update and set adminID to the user approving the request
     const approveQuery = `
       UPDATE SERVICOSDB.dbo.Requisicao
-      SET aprovadoPorAdministrador = @aprovadoPorAdministrador
+      SET aprovadoPorAdministrador = @aprovadoPorAdministrador, adminID = @adminID
       WHERE requisicaoID = @requisicaoID
     `;
     console.log('Executing approval query:', approveQuery, { requisicaoID, aprovadoPorAdministrador: status });
@@ -297,6 +294,7 @@ router.post('/approve/:requisicaoID', async (req, res) => {
     const approveResult = await transaction.request()
       .input('requisicaoID', requisicaoID)
       .input('aprovadoPorAdministrador', status)
+      .input('adminID', userID) // Set the adminID to the one approving the order
       .query(approveQuery);
 
     if (approveResult.rowsAffected === 0) {
@@ -304,7 +302,7 @@ router.post('/approve/:requisicaoID', async (req, res) => {
       throw new Error('Requisicao not found or already approved');
     }
 
-    // Update estadoID to 3 after approval
+    // Update estadoID to 3 after approval (assuming 3 is for approved state)
     const updateEstadoQuery = `
       UPDATE SERVICOSDB.dbo.Requisicao
       SET estadoID = 3
@@ -338,6 +336,97 @@ router.post('/approve/:requisicaoID', async (req, res) => {
     }
     console.error('Error approving requisicao:', error.message);
     res.status(500).json({ error: 'Error approving requisicao', details: error.message });
+  }
+});
+
+// ADD THE CANCEL ( CHANGE THE estadoID to 2 ) 
+// CANCEL
+router.post('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
+  let { requisicaoID } = req.params;
+
+  requisicaoID = parseInt(requisicaoID, 10); // Ensure requisicaoID is an integer
+
+  if (isNaN(requisicaoID)) {
+    return res.status(400).json({ error: 'Invalid requisicaoID. It must be an integer.' });
+  }
+
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+
+  const { userID, isAdmin } = decoded;
+
+  if (!userID || !isAdmin) {
+    return res.status(403).json({ error: 'Forbidden: Only admin can cancel' });
+  }
+
+  const pool = await getPool();
+  let transaction;
+
+  try {
+    // Start the transaction
+    transaction = pool.transaction();
+    await transaction.begin();
+
+    // Validate requisicaoID exists
+    const validateQuery = `
+      SELECT COUNT(*) AS requisicaoExists
+      FROM SERVICOSDB.dbo.Requisicao
+      WHERE requisicaoID = @requisicaoID
+    `;
+    const validateResult = await transaction.request()
+      .input('requisicaoID', requisicaoID)
+      .query(validateQuery);
+
+    if (validateResult.recordset[0].requisicaoExists === 0) {
+      console.error(`Requisicao not found with requisicaoID: ${requisicaoID}`);
+      throw new Error('Requisicao not found');
+    }
+
+    // Execute the cancellation update and set adminID to the user canceling the request
+    const cancelQuery = `
+      UPDATE SERVICOSDB.dbo.Requisicao
+      SET estadoID = 2, adminID = @adminID -- Assuming 2 is canceled state
+      WHERE requisicaoID = @requisicaoID
+    `;
+    console.log('Executing cancel query:', cancelQuery, { requisicaoID });
+
+    const cancelResult = await transaction.request()
+      .input('requisicaoID', requisicaoID)
+      .input('adminID', userID) // Set the adminID to the one canceling the order
+      .query(cancelQuery);
+
+    if (cancelResult.rowsAffected === 0) {
+      console.error(`No requisicao found with requisicaoID: ${requisicaoID}`);
+      throw new Error('Requisicao not found or already canceled');
+    }
+
+    // Commit the transaction
+    await transaction.commit();
+
+    // Respond with success
+    console.log('Requisicao canceled successfully:', { requisicaoID });
+    res.status(200).json({ message: 'Requisicao canceled successfully', requisicaoID });
+  } catch (error) {
+    if (transaction) {
+      try {
+        await transaction.rollback(); // Ensure rollback occurs even in error case
+        console.log('Transaction rolled back');
+      } catch (rollbackError) {
+        console.error('Error rolling back transaction:', rollbackError.message);
+      }
+    }
+    console.error('Error canceling requisicao:', error.message);
+    res.status(500).json({ error: 'Error canceling requisicao', details: error.message });
   }
 });
 
@@ -394,8 +483,28 @@ router.get('/list/:servicoID', async (req, res) => {
 });
 
 // DELETE
-router.delete('/:requestID', async (req, res) => {
+router.delete('/delete/:requestID', async (req, res) => {
   const { requestID } = req.params;
+
+  // Extract the token from the Authorization header
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+
+  const { userID, isAdmin } = decoded;
+
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Forbidden: Only administrators can delete requests' });
+  }
 
   try {
     const pool = await getPool();
@@ -424,7 +533,6 @@ router.delete('/:requestID', async (req, res) => {
     res.status(500).json({ error: 'Error deleting request' });
   }
 });
-
 
 
 module.exports = router;
