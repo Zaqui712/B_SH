@@ -1,79 +1,62 @@
-const express = require('express'); 
-const cors = require('cors'); // Import cors
+const express = require('express');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const { getPool } = require('../../db'); // Ensure correct path to DB connection module
+
 const router = express.Router();
-const { getPool } = require('../../db'); // Updated path
 
 // Enable CORS for all origins
 const corsOptions = {
-  origin: '*', // Allow all origins (you can restrict this to specific domains in production)
-  methods: ['GET', 'POST'],
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// Apply CORS middleware globally
 router.use(cors(corsOptions));
 
-// Middleware to verify if the user is an administrator
-const verifyAdmin = async (req, res, next) => {
-  const { adminID } = req.body;
+// Middleware to verify token and user roles
+const verifyToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Unauthorized: No token provided' });
+
   try {
-    const pool = await getPool();
-    const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.dbo.Credenciais WHERE credenciaisID = @adminID';
-    const result = await pool.request().input('adminID', adminID).query(query);
-    if (result.recordset.length > 0 && result.recordset[0].utilizadorAdministrador) {
-      next();
-    } else {
-      res.status(403).send('Access denied. Only administrators can approve orders.');
-    }
-  } catch (error) {
-    res.status(400).send(error.message);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    req.user = decoded; // Attach user data to request for later use
+    next();
+  } catch (err) {
+    console.error('JWT verification error:', err.message);
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
   }
 };
 
-// CREATE
-// Route to create a manual order
-router.post('/create', async (req, res) => {
-  const { estadoID, fornecedorID, dataEncomenda, dataEntrega, quantidadeEnviada, medicamentos } = req.body;
-
-  // Extract token and validate
-const token = req.headers.authorization?.split(' ')[1];
-if (!token) {
-  return res.status(401).json({ error: 'Unauthorized: No token provided' });
-}
-
-try {
-  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-
-  // Check if user is admin
-  if (decoded.isAdmin) {
-    return res.status(403).json({ error: 'Only health professionals can create orders' });
+const verifyAdmin = (req, res, next) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: 'Access denied: Only administrators can perform this action.' });
   }
+  next();
+};
 
-  req.userID = decoded.userID;  // Attach user info for further use
-} catch (err) {
-  return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-}
-
-  const profissionalID = userID; // Use userID as profissionalID
+// CREATE: Route to create a manual order
+router.post('/create', verifyToken, async (req, res) => {
+  const { estadoID, fornecedorID, dataEncomenda, dataEntrega, quantidadeEnviada, medicamentos } = req.body;
+  const profissionalID = req.user.userID;
 
   try {
     const pool = await getPool();
     const transaction = pool.transaction();
 
-    // Check if estadoID exists
+    // Validate estadoID
     const estadoCheckQuery = 'SELECT COUNT(*) AS estadoCount FROM SERVICOSDB.dbo.Estado WHERE estadoID = @estadoID';
-    const estadoCheckResult = await pool.request()
-      .input('estadoID', estadoID)
-      .query(estadoCheckQuery);
+    const estadoCheckResult = await pool.request().input('estadoID', estadoID).query(estadoCheckQuery);
 
-    if (estadoCheckResult.recordset.length === 0 || estadoCheckResult.recordset[0].estadoCount === 0) {
+    if (estadoCheckResult.recordset[0].estadoCount === 0) {
       return res.status(400).json({ error: `estadoID ${estadoID} does not exist in Estado table` });
     }
 
     // Start transaction
     await transaction.begin();
 
-    // Insert order and return order ID
+    // Insert order and get new order ID
     const createOrderQuery = `
       INSERT INTO SERVICOSDB.dbo.Encomenda 
       (estadoID, fornecedorID, profissionalID, dataEncomenda, dataEntrega, quantidadeEnviada)
@@ -95,9 +78,8 @@ try {
     if (Array.isArray(medicamentos) && medicamentos.length > 0) {
       for (const med of medicamentos) {
         const { medicamentoID, quantidade } = med;
-
         if (!medicamentoID || !quantidade) {
-          return res.status(400).json({ error: 'Each medication must have an ID and quantity' });
+          throw new Error('Each medication must have an ID and quantity');
         }
 
         const linkMedicationQuery = `
@@ -114,96 +96,41 @@ try {
 
     // Commit transaction
     await transaction.commit();
-
     res.status(201).json({ message: 'Order created successfully', encomendaID: newOrderID });
+
   } catch (error) {
-    // Rollback transaction on error
-    if (transaction) await transaction.rollback();
     console.error('Error creating order:', error.message);
+    if (transaction) await transaction.rollback();
     res.status(500).json({ error: 'Error creating order', details: error.message });
   }
 });
 
-
-
-
-
-// READ
-// Route to list all orders
-router.get('/all', async (req, res) => {
+// READ: Route to list all orders
+router.get('/all', verifyToken, async (req, res) => {
   try {
     const pool = await getPool();
     const query = `
-      SELECT 
-  e.encomendaID,
-  e.estadoID,
-  e.adminID,
-  e.fornecedorID,
-  e.encomendaCompleta,
-  e.aprovadoPorAdministrador,
-  e.dataEncomenda,
-  e.dataEntrega,
-  e.quantidadeEnviada,
-  e.profissionalID,
-  a.nomeProprio AS adminNome,
-  a.ultimoNome AS adminUltimoNome,
-  f.nomeFornecedor,
-  p.nomeProprio AS profissionalNome,
-  p.ultimoNome AS profissionalUltimoNome,
-  sh.nomeServico AS servicoNome
-FROM 
-  SERVICOSDB.dbo.Encomenda e
-LEFT JOIN 
-  SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
-LEFT JOIN 
-  SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
-LEFT JOIN 
-  SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID
-LEFT JOIN 
-  SERVICOSDB.dbo.Servico_Hospitalar sh ON p.servicoID = sh.servicoID
-
-    `;
-    
-    console.log('Executing query:', query); // Log the query for debugging
-    
-    const result = await pool.request().query(query);
-    
-    if (result.recordset.length === 0) {
-      console.log('No records found.');
-      res.status(404).json({ message: 'No orders found' });
-      return;
-    }
-
-    console.log('Query result:', result.recordset); // Log the result for debugging
-    res.json(result.recordset);
-  } catch (error) {
-    console.error('Error fetching orders:', error.message); // Log the error for debugging
-    res.status(400).send({ error: error.message });
-  }
-});
-
-
-// Route to list pending approval orders
-router.get('/pending-approval', async (req, res) => {
-  try {
-    const pool = await getPool();
-    const query = `
-      SELECT e.*, a.nomeProprio, a.ultimoNome, p.nomeProprio AS profissionalNome, p.ultimoNome AS profissionalUltimoNome
+      SELECT e.encomendaID, e.estadoID, e.adminID, e.fornecedorID, e.encomendaCompleta,
+             e.aprovadoPorAdministrador, e.dataEncomenda, e.dataEntrega, e.quantidadeEnviada,
+             e.profissionalID, a.nomeProprio AS adminNome, a.ultimoNome AS adminUltimoNome,
+             f.nomeFornecedor, p.nomeProprio AS profissionalNome, p.ultimoNome AS profissionalUltimoNome,
+             sh.nomeServico AS servicoNome
       FROM SERVICOSDB.dbo.Encomenda e
-      JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
+      LEFT JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
+      LEFT JOIN SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
       LEFT JOIN SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID
-      WHERE e.aprovadoPorAdministrador = 0
+      LEFT JOIN SERVICOSDB.dbo.Servico_Hospitalar sh ON p.servicoID = sh.servicoID
     `;
     const result = await pool.request().query(query);
-    res.json(result.recordset);
+    res.json(result.recordset.length ? result.recordset : { message: 'No orders found' });
   } catch (error) {
-    res.status(400).send(error.message);
+    console.error('Error fetching orders:', error.message);
+    res.status(400).json({ error: error.message });
   }
 });
 
-// UPDATE
-// Route to approve an order (only administrators)
-router.put('/approve/:encomendaID', verifyAdmin, async (req, res) => {
+// UPDATE: Approve an order (only administrators)
+router.put('/approve/:encomendaID', verifyToken, verifyAdmin, async (req, res) => {
   const { encomendaID } = req.params;
 
   try {
@@ -214,53 +141,29 @@ router.put('/approve/:encomendaID', verifyAdmin, async (req, res) => {
       WHERE encomendaID = @encomendaID
       OUTPUT INSERTED.*
     `;
-
     const result = await pool.request().input('encomendaID', encomendaID).query(query);
-
-    if (result.recordset.length === 0) {
-      return res.status(404).json({ message: 'Order not found or already approved.' });
-    }
-
-    res.status(200).json({ message: 'Order approved successfully.', encomenda: result.recordset[0] });
+    res.json(result.recordset.length ? { message: 'Order approved successfully.', encomenda: result.recordset[0] } : { message: 'Order not found or already approved.' });
   } catch (error) {
     console.error('Error approving order:', error.message);
-    res.status(500).send('Error approving order');
+    res.status(500).json({ error: 'Error approving order' });
   }
 });
 
-// Route to approve orders (only administrators)
-router.post('/approve', verifyAdmin, async (req, res) => {
-  const { encomendaID } = req.body;
-  try {
-    const pool = await getPool();
-    const query = `
-      UPDATE SERVICOSDB.dbo.Encomenda
-      SET aprovadoPorAdministrador = 1
-      WHERE encomendaID = @encomendaID
-    `;
-    await pool.request().input('encomendaID', encomendaID).query(query);
-    res.status(200).send('Order approved successfully');
-  } catch (error) {
-    res.status(400).send(error.message);
-  }
-});
-
-// DELETE
-// Route to delete an order
-router.delete('/orders/:encomendaID', async (req, res) => {
+// DELETE: Delete an order
+router.delete('/orders/:encomendaID', verifyToken, async (req, res) => {
   const { encomendaID } = req.params;
 
   try {
     const pool = await getPool();
 
-    // First, delete any associated Medicamento_Encomenda entries
+    // Delete associated medications
     const deleteMedicationsQuery = `
       DELETE FROM SERVICOSDB.dbo.Medicamento_Encomenda
       WHERE encomendaID = @encomendaID
     `;
     await pool.request().input('encomendaID', encomendaID).query(deleteMedicationsQuery);
 
-    // Then, delete the order itself
+    // Delete the order
     const deleteOrderQuery = `
       DELETE FROM SERVICOSDB.dbo.Encomenda
       WHERE encomendaID = @encomendaID
@@ -268,14 +171,10 @@ router.delete('/orders/:encomendaID', async (req, res) => {
     `;
     const result = await pool.request().input('encomendaID', encomendaID).query(deleteOrderQuery);
 
-    if (result.recordset.length === 0) {
-      return res.status(404).json({ message: 'Order not found.' });
-    }
-
-    res.status(200).json({ message: 'Order deleted successfully.', encomenda: result.recordset[0] });
+    res.json(result.recordset.length ? { message: 'Order deleted successfully.', encomenda: result.recordset[0] } : { message: 'Order not found.' });
   } catch (error) {
     console.error('Error deleting order:', error.message);
-    res.status(500).send('Error deleting order');
+    res.status(500).json({ error: 'Error deleting order' });
   }
 });
 
