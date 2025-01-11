@@ -227,7 +227,8 @@ router.get('/all', async (req, res) => {
 });
 
 // APPROVE
-router.post('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
+// APPROVE
+router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
   let { requisicaoID } = req.params;
   const { aprovadoPorAdministrador } = req.body;
 
@@ -339,9 +340,8 @@ router.post('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
   }
 });
 
-// ADD THE CANCEL ( CHANGE THE estadoID to 2 ) 
 // CANCEL
-router.post('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
+router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
   let { requisicaoID } = req.params;
 
   requisicaoID = parseInt(requisicaoID, 10); // Ensure requisicaoID is an integer
@@ -429,6 +429,7 @@ router.post('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
     res.status(500).json({ error: 'Error canceling requisicao', details: error.message });
   }
 });
+
 
 
 // Fetch pending approval requests with medication details
