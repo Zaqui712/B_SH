@@ -139,15 +139,22 @@ router.put('/approve/:encomendaID', verifyToken, verifyAdmin, async (req, res) =
       UPDATE SERVICOSDB.dbo.Encomenda
       SET aprovadoPorAdministrador = 1
       WHERE encomendaID = @encomendaID
-      OUTPUT INSERTED.*
     `;
-    const result = await pool.request().input('encomendaID', encomendaID).query(query);
-    res.json(result.recordset.length ? { message: 'Order approved successfully.', encomenda: result.recordset[0] } : { message: 'Order not found or already approved.' });
+    const result = await pool.request()
+      .input('encomendaID', encomendaID)
+      .query(query);
+
+    if (result.rowsAffected[0] > 0) {
+      res.json({ message: 'Order approved successfully.' });
+    } else {
+      res.json({ message: 'Order not found or already approved.' });
+    }
   } catch (error) {
     console.error('Error approving order:', error.message);
     res.status(500).json({ error: 'Error approving order' });
   }
 });
+
 
 // DELETE: Delete an order (only administrators)
 router.delete('/orders/:encomendaID', verifyToken, verifyAdmin, async (req, res) => {
@@ -167,15 +174,19 @@ router.delete('/orders/:encomendaID', verifyToken, verifyAdmin, async (req, res)
     const deleteOrderQuery = `
       DELETE FROM SERVICOSDB.dbo.Encomenda
       WHERE encomendaID = @encomendaID
-      OUTPUT DELETED.*
     `;
     const result = await pool.request().input('encomendaID', encomendaID).query(deleteOrderQuery);
 
-    res.json(result.recordset.length ? { message: 'Order deleted successfully.', encomenda: result.recordset[0] } : { message: 'Order not found.' });
+    if (result.rowsAffected[0] > 0) {
+      res.json({ message: 'Order deleted successfully.' });
+    } else {
+      res.json({ message: 'Order not found.' });
+    }
   } catch (error) {
     console.error('Error deleting order:', error.message);
     res.status(500).json({ error: 'Error deleting order' });
   }
 });
+
 
 module.exports = router;
