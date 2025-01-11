@@ -16,40 +16,54 @@ router.use(cors(corsOptions));
 
 // Middleware to verify if the user is an administrator
 const verifyAdmin = async (req, res, next) => {
-  const { adminID } = req.body;  // Extracting adminID from request body, could be from headers if JWT is used
+  const token = req.headers.authorization?.split(' ')[1];  // Extract JWT token from Authorization header
 
-  // Validate adminID is provided
-  if (!adminID) {
-    return res.status(400).json({ error: 'adminID is required' });
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
   }
 
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');  // Verify token using the secret
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+
+  const { userID, isAdmin } = decoded;  // Get userID and isAdmin from decoded token
+
+  // Check if the user has admin privileges
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Forbidden: Only admin can access this resource' });
+  }
+
+  // Optionally, you can check if the userID exists in the Users table, though it's usually redundant with JWT verification
   try {
     const pool = await getPool();
-    
-    // Define the query to check if the user is an admin
-    const query = `SELECT * FROM Users WHERE adminID = @adminID AND role = 'admin'`;  // Example query
-    
-    // Execute the query
-    const result = await pool.request().input('adminID', adminID).query(query);
+    const query = `
+      SELECT * FROM Users 
+      WHERE userID = @userID AND role = 'admin'`;  // Query to check if the user is an admin
 
-    // Check if the user is an admin
+    const result = await pool.request().input('userID', userID).query(query);
+
+    // If the user is not found or not an admin
     if (result.recordset.length === 0) {
-      return res.status(403).json({ error: 'You are not authorized as an admin' });
+      return res.status(403).json({ error: 'Forbidden: You are not authorized as an admin' });
     }
 
-    // If the user is an admin, proceed to the next middleware or route handler
+    // If everything is okay, proceed to the next middleware or route handler
     next();
   } catch (error) {
     if (error.code === 'ESOCKET') {
       // Database connection error
-      res.status(500).json({ error: 'Database connection failed. Please try again later.' });
+      return res.status(500).json({ error: 'Database connection failed. Please try again later.' });
     } else {
       // General error
       console.error('Database query error:', error.message);
-      res.status(500).json({ error: 'Error fetching admin status', details: error.message });
+      return res.status(500).json({ error: 'Error fetching admin status', details: error.message });
     }
   }
 };
+
 
 
 router.post('/create', async (req, res) => {
@@ -230,10 +244,8 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Invalid requisicaoID. It must be an integer.' });
   }
 
+  // Now the verifyAdmin middleware has already verified that the user is an admin
   const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized: No token provided' });
-  }
 
   let decoded;
   try {
@@ -242,10 +254,7 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized: Invalid token' });
   }
 
-  const { userID, isAdmin } = decoded;
-  if (!userID || !isAdmin) {
-    return res.status(403).json({ error: 'Forbidden: Only admin can approve' });
-  }
+  const { userID } = decoded;  // Use userID from decoded token for DB operations
 
   const pool = await getPool();
   let transaction;
@@ -277,7 +286,7 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
     const approveResult = await transaction.request()
       .input('requisicaoID', requisicaoID)
       .input('aprovadoPorAdministrador', aprovadoPorAdministrador)
-      .input('adminID', userID)
+      .input('adminID', userID)  // Use userID from decoded token
       .query(approveQuery);
 
     if (approveResult.rowsAffected === 0) {
@@ -304,8 +313,6 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
     res.status(500).json({ error: 'Error approving requisicao', details: error.message });
   }
 });
-
-module.exports = router;
 
 
 // READ
