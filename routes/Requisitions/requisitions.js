@@ -16,22 +16,41 @@ router.use(cors(corsOptions));
 
 // Middleware to verify if the user is an administrator
 const verifyAdmin = async (req, res, next) => {
-  const { adminID } = req.body;  // Extracting adminID from request body
+  const { adminID } = req.body;  // Extracting adminID from request body, could be from headers if JWT is used
+
+  // Validate adminID is provided
+  if (!adminID) {
+    return res.status(400).json({ error: 'adminID is required' });
+  }
+
   try {
     const pool = await getPool();
-    const query = 'SELECT utilizadorAdministrador FROM SERVICOSDB.dbo.Credenciais WHERE credenciaisID = @adminID';
+    
+    // Define the query to check if the user is an admin
+    const query = `SELECT * FROM Users WHERE adminID = @adminID AND role = 'admin'`;  // Example query
+    
+    // Execute the query
     const result = await pool.request().input('adminID', adminID).query(query);
 
-    if (result.recordset.length > 0 && result.recordset[0].utilizadorAdministrador) {
-      next(); // Proceed if the user is an admin
-    } else {
-      res.status(403).send('Access denied. Only administrators can approve or cancel requests.');
+    // Check if the user is an admin
+    if (result.recordset.length === 0) {
+      return res.status(403).json({ error: 'You are not authorized as an admin' });
     }
+
+    // If the user is an admin, proceed to the next middleware or route handler
+    next();
   } catch (error) {
-    console.error('Error verifying admin:', error.message);
-    res.status(400).send(error.message);
+    if (error.code === 'ESOCKET') {
+      // Database connection error
+      res.status(500).json({ error: 'Database connection failed. Please try again later.' });
+    } else {
+      // General error
+      console.error('Database query error:', error.message);
+      res.status(500).json({ error: 'Error fetching admin status', details: error.message });
+    }
   }
 };
+
 
 router.post('/create', async (req, res) => {
   const { estadoID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos, servicoHospitalarRemetenteID } = req.body;
