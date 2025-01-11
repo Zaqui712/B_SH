@@ -40,7 +40,7 @@ const verifyAdmin = async (req, res, next) => {
   try {
     const pool = await getPool();
     const query = `
-      SELECT * FROM Users 
+      SELECT * FROM dbo.Users  -- Ensure this matches the actual table name and schema
       WHERE userID = @userID AND role = 'admin'`;  // Query to check if the user is an admin
 
     const result = await pool.request().input('userID', userID).query(query);
@@ -63,6 +63,7 @@ const verifyAdmin = async (req, res, next) => {
     }
   }
 };
+
 
 
 
