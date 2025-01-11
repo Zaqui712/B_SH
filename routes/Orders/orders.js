@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const { getPool } = require('../../db'); // Ensure correct path to DB connection module
+const { getPool } = require('../../db');
 
 const router = express.Router();
 
@@ -105,8 +105,8 @@ router.post('/create', verifyToken, async (req, res) => {
   }
 });
 
-// READ: Route to list all orders
-router.get('/all', verifyToken, async (req, res) => {
+// READ: Route to list all orders (No authentication required)
+router.get('/all', async (req, res) => {
   try {
     const pool = await getPool();
     const query = `
@@ -149,8 +149,8 @@ router.put('/approve/:encomendaID', verifyToken, verifyAdmin, async (req, res) =
   }
 });
 
-// DELETE: Delete an order
-router.delete('/orders/:encomendaID', verifyToken, async (req, res) => {
+// DELETE: Delete an order (only administrators)
+router.delete('/orders/:encomendaID', verifyToken, verifyAdmin, async (req, res) => {
   const { encomendaID } = req.params;
 
   try {
