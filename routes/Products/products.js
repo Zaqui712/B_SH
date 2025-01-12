@@ -197,6 +197,7 @@ router.put('/update/:medicamentoID', async (req, res) => {
   const { medicamentoID } = req.params;
   const { nomeMedicamento, tipoMedicamento, dataValidade, lote } = req.body;
 
+  // Check if all required fields are provided
   if (!nomeMedicamento || !tipoMedicamento || !dataValidade || !lote) {
     return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
   }
@@ -209,8 +210,20 @@ router.put('/update/:medicamentoID', async (req, res) => {
   `;
 
   try {
-    const results = await executeQuery(query, { nomeMedicamento, tipoMedicamento, dataValidade, lote, medicamentoID });
-    if (results.length > 0) {
+    // Get the database connection pool
+    const pool = await getPool();
+
+    // Execute the query with parameters
+    const result = await pool.request()
+      .input('nomeMedicamento', nomeMedicamento)
+      .input('tipoMedicamento', tipoMedicamento)
+      .input('dataValidade', dataValidade)
+      .input('lote', lote)
+      .input('medicamentoID', medicamentoID)
+      .query(query);
+
+    // Check if any rows were affected (meaning the medication was updated)
+    if (result.rowsAffected[0] > 0) {
       res.status(200).json({ message: 'Medicamento atualizado com sucesso.' });
     } else {
       res.status(404).json({ message: 'Medicamento não encontrado.' });
@@ -220,6 +233,7 @@ router.put('/update/:medicamentoID', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // DELETE
 // Route to delete a medication
@@ -231,22 +245,25 @@ router.delete('/delete/:medicamentoID', verifyAdmin, async (req, res) => {
   `;
 
   try {
-    const checkResults = await executeQuery(checkQuery, { medicamentoID });
+    // Use getPool to interact with the database
+    const pool = await getPool();
+    const checkResults = await pool.request().input('medicamentoID', medicamentoID).query(checkQuery);
 
-    if (checkResults.length === 0) {
+    if (checkResults.recordset.length === 0) {
       return res.status(404).json({ message: 'Medicamento não encontrado.' });
     }
 
     const deleteQuery = `
       DELETE FROM SERVICOSDB.dbo.Medicamento WHERE medicamentoID = @medicamentoID
     `;
-    
-    await executeQuery(deleteQuery, { medicamentoID });
+
+    await pool.request().input('medicamentoID', medicamentoID).query(deleteQuery);
     res.status(200).json({ message: 'Medicamento deletado com sucesso.' });
   } catch (error) {
     console.error('Erro ao deletar medicamento:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
+
 
 module.exports = router;
