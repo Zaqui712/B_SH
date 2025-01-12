@@ -3,14 +3,57 @@ const cors = require('cors');
 const router = express.Router();
 const { executeQuery } = require('../../db');
 
-// Example admin check middleware
-const isAdmin = (req, res, next) => {
-    // Replace with your actual authentication and admin validation logic
-    const userRole = req.headers['x-user-role']; // Example custom header
-    if (userRole && userRole === 'admin') {
-        return next();
+// Middleware to verify if the user is an administrator
+const verifyAdmin = async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];  // Extract JWT token from Authorization header
+
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');  // Verify token using the secret
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+
+  const { userID, isAdmin } = decoded;  // Get userID and isAdmin from decoded token
+
+  // Check if the user has admin privileges
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Forbidden: Only admin can access this resource' });
+  }
+
+  // Now we use the 'Administrador' table to check if the user is an admin
+  try {
+    const pool = await getPool();
+    const query = `
+      SELECT a.adminID, c.utilizadorAdministrador 
+      FROM dbo.Administrador a
+      JOIN dbo.Credenciais c ON a.credenciaisID = c.credenciaisID
+      WHERE a.adminID = @userID AND c.utilizadorAdministrador = 1`;  // Ensure this matches the schema and fields
+
+    const result = await pool.request().input('userID', userID).query(query);
+
+    // If the user is not found or not an admin
+    if (result.recordset.length === 0) {
+      return res.status(403).json({ error: 'Forbidden: You are not authorized as an admin' });
     }
-    res.status(403).json({ error: 'Access denied. Admins only.' });
+
+    // If everything is okay, proceed to the next middleware or route handler
+    next();
+  } catch (error) {
+    console.error('Error fetching admin status:', error.message);
+    
+    // Additional handling for SQL errors or connection issues
+    if (error.code === 'ESOCKET') {
+      return res.status(500).json({ error: 'Database connection failed. Please try again later.' });
+    }
+    
+    // General error
+    return res.status(500).json({ error: 'Error fetching admin status', details: error.message });
+  }
 };
 
 // CORS Configuration
@@ -57,7 +100,7 @@ router.get('/all', async (req, res) => {
 });
 
 // Fetch specific service and its medication stock
-router.get('/servico/:id/stock', async (req, res) => {
+router.get('/showstock/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -88,7 +131,7 @@ router.get('/servico/:id/stock', async (req, res) => {
 });
 
 // Admin-only: Create or Update stock
-router.put('/servico/:id/stock', isAdmin, async (req, res) => {
+router.put('/add/:id', verifyAdmin, async (req, res) => {
     const { id } = req.params;
     const { medicamentoID, quantidadeDisponivel, quantidadeMinima } = req.body;
 
@@ -126,7 +169,7 @@ router.put('/servico/:id/stock', isAdmin, async (req, res) => {
 });
 
 // Admin-only: Create a new Servico_Hospitalar
-router.post('/add', async (req, res) => {
+router.post('/add', verifyAdmin, async (req, res) => {
     const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
 
     const insertQuery = `
