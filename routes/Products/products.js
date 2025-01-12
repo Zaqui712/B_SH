@@ -193,7 +193,7 @@ router.get('/search', searchProduct);
 
 // UPDATE
 // Route to update medication information
-router.put('/update/:medicamentoID', async (req, res) => {
+router.put('/update/:medicamentoID', verifyAdmin, async (req, res) => {
   const { medicamentoID } = req.params;
   const { nomeMedicamento, tipoMedicamento, dataValidade, lote } = req.body;
 
@@ -233,6 +233,7 @@ router.put('/update/:medicamentoID', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 
 // DELETE
