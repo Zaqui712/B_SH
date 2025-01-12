@@ -83,6 +83,7 @@ router.get('/user/admin-status', async (req, res) => {
   }
 });
 
+
 // CREATE
 // Route to add a new medication
 router.post('/new', verifyAdmin, async (req, res) => {
@@ -98,15 +99,20 @@ router.post('/new', verifyAdmin, async (req, res) => {
   `;
 
   try {
-    // Ensure parameters are passed correctly
-    await executeQuery(query, { nomeMedicamento, tipoMedicamento, dataValidade, lote });
+    const pool = await getPool();
+    await pool.request()
+      .input('nomeMedicamento', nomeMedicamento)
+      .input('tipoMedicamento', tipoMedicamento)
+      .input('dataValidade', dataValidade)
+      .input('lote', lote)
+      .query(query);
+
     res.status(201).json({ message: 'Medicamento criado com sucesso.' });
   } catch (error) {
     console.error('Erro ao adicionar medicamento:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
-
 
 // READ
 // Route to list all medications and list their global stock
@@ -128,13 +134,15 @@ router.get('/all', async (req, res) => {
   `;
 
   try {
-    const results = await executeQuery(query);
-    res.status(200).json(results);
+    const pool = await getPool();
+    const result = await pool.request().query(query);
+    res.status(200).json(result.recordset);
   } catch (error) {
     console.error('Error listing medications:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Route to list all medications
 router.get('/allmedicamentoslist', async (req, res) => {
@@ -167,10 +175,10 @@ const searchProduct = async (req, res) => {
   `;
 
   try {
-    const results = await executeQuery(sqlQuery, { query: `%${query}%` });
-    if (results.length > 0) {
-      console.log('Produtos encontrados:', results);
-      res.status(200).json(results);
+    const pool = await getPool();
+    const result = await pool.request().input('query', `%${query}%`).query(sqlQuery);
+    if (result.recordset.length > 0) {
+      res.status(200).json(result.recordset);
     } else {
       res.status(404).json({ message: 'Nenhum produto encontrado com a consulta fornecida.' });
     }
@@ -179,6 +187,7 @@ const searchProduct = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 router.get('/search', searchProduct);
 
