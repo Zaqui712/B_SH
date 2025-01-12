@@ -16,15 +16,13 @@ const verifyAdmin = async (req, res, next) => {
     }
 
     let decoded;
-	try {
-		decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-		console.log('Decoded token:', decoded);  // Add this log
-	} catch (err) {
-		console.error('Error verifying token:', err);
-		return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-	}
-	console.log('Admin check result:', result.recordset);  // Add this log
-
+    try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+        console.log('Decoded token:', decoded);  // Add this log
+    } catch (err) {
+        console.error('Error verifying token:', err);
+        return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    }
 
     const { userID, isAdmin } = decoded;  // Get userID and isAdmin from decoded token
 
@@ -43,6 +41,9 @@ const verifyAdmin = async (req, res, next) => {
             WHERE a.adminID = @userID AND c.utilizadorAdministrador = 1`;
 
         const result = await pool.request().input('userID', sql.Int, userID).query(query);  // Use sql.Int for parameter type
+
+        // Log the result after the query is executed
+        console.log('Admin check result:', result.recordset);  // This log is now inside the try block where 'result' is defined
 
         // If the user is not found or not an admin
         if (result.recordset.length === 0) {
@@ -63,6 +64,7 @@ const verifyAdmin = async (req, res, next) => {
         return res.status(500).json({ error: 'Error fetching admin status', details: error.message });
     }
 };
+
 
 
 // CORS Configuration
