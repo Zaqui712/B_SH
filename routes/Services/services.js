@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const router = express.Router();
 const { executeQuery } = require('../../db');
+const jwt = require('jsonwebtoken'); // Importing the jwt package
+
 
 // Middleware to verify if the user is an administrator
 const verifyAdmin = async (req, res, next) => {
