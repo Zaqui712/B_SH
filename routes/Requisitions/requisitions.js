@@ -203,7 +203,7 @@ router.post('/create', async (req, res) => {
   }
 });
 
-// Read all requisitions, including medication details
+// Read all requisitions
 router.get('/all', async (req, res) => {
   try {
     const pool = await getPool();
@@ -224,11 +224,10 @@ router.get('/all', async (req, res) => {
           SH.nomeServico,
           SH.servicoDisponivel24horas,
           SRH.nomeServico AS nomeServicoHospitalarRemetente,
-          M.nomeMedicamento,           -- Medication name
-          M.descricaoMedicamento,      -- Medication description
-          M.tipoMedicamento,           -- Medication type (e.g., pill, injection)
-          M.dosagem,                   -- Dosage (e.g., 500mg, 10ml)
-          MR.quantidade AS quantidadeMedicamento -- Quantity of medication
+          E.nomeEstado AS nomeEstadoRequisicao,   -- Estado table join
+          A.nomeAdmin AS nomeAdmin,               -- Admin table join
+          MR.medicamentoID,                       -- Medicamento table join
+          MR.quantidade AS quantidadeMedicamento
       FROM 
           SERVICOSDB.dbo.Requisicao R
       JOIN 
@@ -237,10 +236,12 @@ router.get('/all', async (req, res) => {
           SERVICOSDB.dbo.Servico_Hospitalar SH ON P.servicoID = SH.servicoID
       LEFT JOIN 
           SERVICOSDB.dbo.Servico_Hospitalar SRH ON R.servicoHospitalarRemetenteID = SRH.servicoID
-      JOIN 
-          SERVICOSDB.dbo.Medicamento_Requisicao MR ON R.requisicaoID = MR.requisicaoID
-      JOIN 
-          SERVICOSDB.dbo.Medicamento M ON MR.medicamentoID = M.medicamentoID
+      LEFT JOIN 
+          SERVICOSDB.dbo.Estado E ON R.estadoID = E.estadoID   -- Estado table
+      LEFT JOIN 
+          SERVICOSDB.dbo.Admin A ON R.adminID = A.adminID       -- Admin table
+      LEFT JOIN 
+          SERVICOSDB.dbo.Medicamento_Requisicao MR ON R.requisicaoID = MR.requisicaoID -- Medicamento table
     `;
     const result = await pool.request().query(query);
     res.status(200).json(result.recordset);
@@ -249,6 +250,7 @@ router.get('/all', async (req, res) => {
     res.status(500).json({ error: 'Error fetching requisitions' });
   }
 });
+
 
 // Approve request
 router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
