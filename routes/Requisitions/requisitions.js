@@ -526,8 +526,104 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
   }
 });
 
+// SET COMPLETE REQUISITION WITH STOCK ADJUSTMENTS
+router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
+  let { requisicaoID } = req.params;
 
-// CANCEL
+  // Ensure requisicaoID is an integer
+  requisicaoID = parseInt(requisicaoID, 10);
+  if (isNaN(requisicaoID)) {
+    return res.status(400).json({ error: 'Invalid requisicaoID. It must be an integer.' });
+  }
+
+  const pool = await getPool();
+  let transaction;
+
+  try {
+    // Start the transaction
+    transaction = pool.transaction();
+    await transaction.begin();
+
+    // Fetch requisition details
+    const requisitionDetailsQuery = `
+      SELECT servicoHospitalarRemetenteID AS origemServicoID, 
+             servicoID AS destinoServicoID, 
+             medicamentoID, 
+             quantidade
+      FROM SERVICOSDB.dbo.Requisicao_Medicamento
+      WHERE requisicaoID = @requisicaoID`;
+
+    const requisitionDetails = await transaction.request()
+      .input('requisicaoID', requisicaoID)
+      .query(requisitionDetailsQuery);
+
+    if (requisitionDetails.recordset.length === 0) {
+      throw new Error(`Requisition not found or has no associated medications: requisicaoID ${requisicaoID}`);
+    }
+
+    // Update stock for each medication
+    for (const { origemServicoID, destinoServicoID, medicamentoID, quantidade } of requisitionDetails.recordset) {
+      // Remove stock from source service
+      const removeStockQuery = `
+        UPDATE Medicamento_Servico_Hospitalar
+        SET quantidadeDisponivel = quantidadeDisponivel - @quantidade
+        WHERE medicamentoID = @medicamentoID AND servicoID = @origemServicoID
+          AND quantidadeDisponivel >= @quantidade`;
+
+      const removeResult = await transaction.request()
+        .input('quantidade', quantidade)
+        .input('medicamentoID', medicamentoID)
+        .input('origemServicoID', origemServicoID)
+        .query(removeStockQuery);
+
+      if (removeResult.rowsAffected[0] === 0) {
+        throw new Error(`Insufficient stock or invalid source service for medicamentoID ${medicamentoID}`);
+      }
+
+      // Add stock to destination service
+      const addStockQuery = `
+        UPDATE Medicamento_Servico_Hospitalar
+        SET quantidadeDisponivel = quantidadeDisponivel + @quantidade
+        WHERE medicamentoID = @medicamentoID AND servicoID = @destinoServicoID`;
+
+      await transaction.request()
+        .input('quantidade', quantidade)
+        .input('medicamentoID', medicamentoID)
+        .input('destinoServicoID', destinoServicoID)
+        .query(addStockQuery);
+    }
+
+    // Update estadoID to 4 (completed)
+    const updateEstadoQuery = `
+      UPDATE SERVICOSDB.dbo.Requisicao
+      SET estadoID = 4
+      WHERE requisicaoID = @requisicaoID`;
+
+    await transaction.request()
+      .input('requisicaoID', requisicaoID)
+      .query(updateEstadoQuery);
+
+    // Commit the transaction
+    await transaction.commit();
+
+    // Respond with success
+    console.log(`Requisition completed and stock updated successfully for requisicaoID: ${requisicaoID}`);
+    res.status(200).json({ message: 'Requisition completed and stock updated successfully.', requisicaoID });
+  } catch (error) {
+    if (transaction) {
+      try {
+        await transaction.rollback(); // Ensure rollback occurs in case of an error
+        console.log('Transaction rolled back');
+      } catch (rollbackError) {
+        console.error('Error rolling back transaction:', rollbackError.message);
+      }
+    }
+    console.error('Error completing requisition:', error.message);
+    res.status(500).json({ error: 'Error completing requisition', details: error.message });
+  }
+});
+
+
 // CANCEL
 router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
   let { requisicaoID } = req.params;
