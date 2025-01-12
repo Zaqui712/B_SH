@@ -126,7 +126,7 @@ router.put('/servico/:id/stock', isAdmin, async (req, res) => {
 });
 
 // Admin-only: Create a new Servico_Hospitalar
-router.post('/add', isAdmin, async (req, res) => {
+router.post('/add', async (req, res) => {
     const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
 
     const insertQuery = `
@@ -134,14 +134,29 @@ router.post('/add', isAdmin, async (req, res) => {
         (localidadeServico, nomeServico, descServico, servicoDisponivel24horas)
         VALUES (@localidadeServico, @nomeServico, @descServico, @servicoDisponivel24horas);
     `;
+    
+    const selectQuery = `
+        SELECT TOP 1 servicoID, localidadeServico, nomeServico, descServico, servicoDisponivel24horas
+        FROM SERVICOSDB.dbo.Servico_Hospitalar
+        WHERE localidadeServico = @localidadeServico AND nomeServico = @nomeServico
+        ORDER BY servicoID DESC;
+    `;
+
+    const values = { localidadeServico, nomeServico, descServico, servicoDisponivel24horas };
 
     try {
-        await executeQuery(insertQuery, { localidadeServico, nomeServico, descServico, servicoDisponivel24horas });
-        res.status(201).json({ message: 'Servico_Hospitalar created successfully.' });
+        // Execute the insert query
+        await executeQuery(insertQuery, values);
+
+        // Fetch the newly inserted record
+        const result = await executeQuery(selectQuery, values);
+        res.status(201).json(result.recordset[0]);
     } catch (error) {
         console.error('Error creating Servico_Hospitalar:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
 
+
 module.exports = router;
+
