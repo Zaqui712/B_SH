@@ -75,61 +75,7 @@ async function handleQueryExecution(query, params, res, successStatus = 200) {
         res.status(500).json({ error: error.message });
     }
 }
-
-// Fetch all services or search by criteria
-router.get('/all', async (req, res) => {
-    const { servicoID, localidadeServico } = req.query;
-    let query = `
-        SELECT servicoID, localidadeServico, nomeServico, descServico, servicoDisponivel24horas
-        FROM SERVICOSDB.dbo.Servico_Hospitalar
-        WHERE 1=1
-    `;
-    const params = {};
-
-    if (servicoID) {
-        query += ' AND servicoID = @servicoID';
-        params.servicoID = servicoID;
-    }
-
-    if (localidadeServico) {
-        query += ' AND localidadeServico LIKE @localidadeServico';
-        params.localidadeServico = `%${localidadeServico}%`;
-    }
-
-    handleQueryExecution(query, params, res);
-});
-
-// Fetch specific service and its medication stock
-router.get('/showstock/:id', async (req, res) => {
-    const { id } = req.params;
-
-    try {
-        const serviceQuery = `
-            SELECT servicoID, nomeServico, descServico, localidadeServico, servicoDisponivel24horas
-            FROM SERVICOSDB.dbo.Servico_Hospitalar
-            WHERE servicoID = @id;
-        `;
-
-        const stockQuery = `
-            SELECT ms.medicamentoID, m.nomeMedicamento, ms.quantidadeDisponivel, ms.quantidadeMinima
-            FROM SERVICOSDB.dbo.Medicamento_Servico_Hospitalar ms
-            JOIN SERVICOSDB.dbo.Medicamento m ON ms.medicamentoID = m.medicamentoID
-            WHERE ms.servicoID = @id;
-        `;
-
-        const serviceResult = await executeQuery(serviceQuery, { id });
-        if (serviceResult.recordset.length === 0) {
-            return res.status(404).json({ error: 'Servico_Hospitalar not found' });
-        }
-
-        const stockResult = await executeQuery(stockQuery, { id });
-        res.status(200).json({ service: serviceResult.recordset[0], stock: stockResult.recordset });
-    } catch (error) {
-        console.error('Error fetching service and stock details:', error.message);
-        res.status(500).json({ error: error.message });
-    }
-});
-
+//CREATE
 // Admin-only: Create or Update stock
 router.put('/add/:id', verifyAdmin, async (req, res) => {
     const { id } = req.params;
@@ -199,6 +145,118 @@ router.post('/add', verifyAdmin, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+//READ
+// Fetch all services or search by criteria
+router.get('/all', async (req, res) => {
+    const { servicoID, localidadeServico } = req.query;
+    let query = `
+        SELECT servicoID, localidadeServico, nomeServico, descServico, servicoDisponivel24horas
+        FROM SERVICOSDB.dbo.Servico_Hospitalar
+        WHERE 1=1
+    `;
+    const params = {};
+
+    if (servicoID) {
+        query += ' AND servicoID = @servicoID';
+        params.servicoID = servicoID;
+    }
+
+    if (localidadeServico) {
+        query += ' AND localidadeServico LIKE @localidadeServico';
+        params.localidadeServico = `%${localidadeServico}%`;
+    }
+
+    handleQueryExecution(query, params, res);
+});
+
+// Fetch specific service and its medication stock
+router.get('/showstock/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const serviceQuery = `
+            SELECT servicoID, nomeServico, descServico, localidadeServico, servicoDisponivel24horas
+            FROM SERVICOSDB.dbo.Servico_Hospitalar
+            WHERE servicoID = @id;
+        `;
+
+        const stockQuery = `
+            SELECT ms.medicamentoID, m.nomeMedicamento, ms.quantidadeDisponivel, ms.quantidadeMinima
+            FROM SERVICOSDB.dbo.Medicamento_Servico_Hospitalar ms
+            JOIN SERVICOSDB.dbo.Medicamento m ON ms.medicamentoID = m.medicamentoID
+            WHERE ms.servicoID = @id;
+        `;
+
+        const serviceResult = await executeQuery(serviceQuery, { id });
+        if (serviceResult.recordset.length === 0) {
+            return res.status(404).json({ error: 'Servico_Hospitalar not found' });
+        }
+
+        const stockResult = await executeQuery(stockQuery, { id });
+        res.status(200).json({ service: serviceResult.recordset[0], stock: stockResult.recordset });
+    } catch (error) {
+        console.error('Error fetching service and stock details:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+//UPDATE
+// Admin-only: Edit an existing Servico_Hospitalar
+router.put('/edit/:id', verifyAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { localidadeServico, nomeServico, descServico, servicoDisponivel24horas } = req.body;
+
+    const updateQuery = `
+        UPDATE SERVICOSDB.dbo.Servico_Hospitalar
+        SET localidadeServico = @localidadeServico,
+            nomeServico = @nomeServico,
+            descServico = @descServico,
+            servicoDisponivel24horas = @servicoDisponivel24horas
+        WHERE servicoID = @id;
+    `;
+
+    const values = { id, localidadeServico, nomeServico, descServico, servicoDisponivel24horas };
+
+    try {
+        const result = await executeQuery(updateQuery, values);
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: 'Servico_Hospitalar not found' });
+        }
+
+        res.status(200).json({ message: 'Servico_Hospitalar updated successfully.' });
+    } catch (error) {
+        console.error('Error updating Servico_Hospitalar:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+//DELETE
+// Admin-only: Delete a Servico_Hospitalar
+router.delete('/delete/:id', verifyAdmin, async (req, res) => {
+    const { id } = req.params;
+
+    const deleteQuery = `
+        DELETE FROM SERVICOSDB.dbo.Servico_Hospitalar
+        WHERE servicoID = @id;
+    `;
+
+    try {
+        const result = await executeQuery(deleteQuery, { id });
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: 'Servico_Hospitalar not found' });
+        }
+
+        res.status(200).json({ message: 'Servico_Hospitalar deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting Servico_Hospitalar:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 
 
 module.exports = router;
