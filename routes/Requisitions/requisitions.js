@@ -203,7 +203,7 @@ router.post('/create', async (req, res) => {
   }
 });
 
-// Read all requisitions
+// Read all requisitions, including medication details
 router.get('/all', async (req, res) => {
   try {
     const pool = await getPool();
@@ -223,7 +223,12 @@ router.get('/all', async (req, res) => {
           SH.servicoID,
           SH.nomeServico,
           SH.servicoDisponivel24horas,
-          SRH.nomeServico AS nomeServicoHospitalarRemetente
+          SRH.nomeServico AS nomeServicoHospitalarRemetente,
+          M.nomeMedicamento,           -- Medication name
+          M.descricaoMedicamento,      -- Medication description
+          M.tipoMedicamento,           -- Medication type (e.g., pill, injection)
+          M.dosagem,                   -- Dosage (e.g., 500mg, 10ml)
+          MR.quantidade AS quantidadeMedicamento -- Quantity of medication
       FROM 
           SERVICOSDB.dbo.Requisicao R
       JOIN 
@@ -232,6 +237,10 @@ router.get('/all', async (req, res) => {
           SERVICOSDB.dbo.Servico_Hospitalar SH ON P.servicoID = SH.servicoID
       LEFT JOIN 
           SERVICOSDB.dbo.Servico_Hospitalar SRH ON R.servicoHospitalarRemetenteID = SRH.servicoID
+      JOIN 
+          SERVICOSDB.dbo.Medicamento_Requisicao MR ON R.requisicaoID = MR.requisicaoID
+      JOIN 
+          SERVICOSDB.dbo.Medicamento M ON MR.medicamentoID = M.medicamentoID
     `;
     const result = await pool.request().query(query);
     res.status(200).json(result.recordset);
