@@ -3,61 +3,64 @@ const cors = require('cors');
 const router = express.Router();
 const { executeQuery } = require('../../db');
 const jwt = require('jsonwebtoken'); // Importing the jwt package
+const sql = require('mssql'); // Import mssql package
+
 
 
 // Middleware to verify if the user is an administrator
 const verifyAdmin = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];  // Extract JWT token from Authorization header
+    const token = req.headers.authorization?.split(' ')[1];  // Extract JWT token from Authorization header
 
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized: No token provided' });
-  }
-
-  let decoded;
-  try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');  // Verify token using the secret
-  } catch (err) {
-    console.error('Error verifying token:', err);
-    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-  }
-
-  const { userID, isAdmin } = decoded;  // Get userID and isAdmin from decoded token
-
-  // Check if the user has admin privileges
-  if (!isAdmin) {
-    return res.status(403).json({ error: 'Forbidden: Only admin can access this resource' });
-  }
-
-  // Now we use the 'Administrador' table to check if the user is an admin
-  try {
-    const pool = await getPool();
-    const query = `
-      SELECT a.adminID, c.utilizadorAdministrador 
-      FROM dbo.Administrador a
-      JOIN dbo.Credenciais c ON a.credenciaisID = c.credenciaisID
-      WHERE a.adminID = @userID AND c.utilizadorAdministrador = 1`;  // Ensure this matches the schema and fields
-
-    const result = await pool.request().input('userID', userID).query(query);
-
-    // If the user is not found or not an admin
-    if (result.recordset.length === 0) {
-      return res.status(403).json({ error: 'Forbidden: You are not authorized as an admin' });
+    if (!token) {
+        return res.status(401).json({ error: 'Unauthorized: No token provided' });
     }
 
-    // If everything is okay, proceed to the next middleware or route handler
-    next();
-  } catch (error) {
-    console.error('Error fetching admin status:', error.message);
-    
-    // Additional handling for SQL errors or connection issues
-    if (error.code === 'ESOCKET') {
-      return res.status(500).json({ error: 'Database connection failed. Please try again later.' });
+    let decoded;
+    try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');  // Verify token using the secret
+    } catch (err) {
+        console.error('Error verifying token:', err);
+        return res.status(401).json({ error: 'Unauthorized: Invalid token' });
     }
-    
-    // General error
-    return res.status(500).json({ error: 'Error fetching admin status', details: error.message });
-  }
+
+    const { userID, isAdmin } = decoded;  // Get userID and isAdmin from decoded token
+
+    // Check if the user has admin privileges
+    if (!isAdmin) {
+        return res.status(403).json({ error: 'Forbidden: Only admin can access this resource' });
+    }
+
+    // Now we use the 'Administrador' table to check if the user is an admin
+    try {
+        const pool = await getPool();  // Get the connection pool
+        const query = `
+            SELECT a.adminID, c.utilizadorAdministrador 
+            FROM dbo.Administrador a
+            JOIN dbo.Credenciais c ON a.credenciaisID = c.credenciaisID
+            WHERE a.adminID = @userID AND c.utilizadorAdministrador = 1`;
+
+        const result = await pool.request().input('userID', sql.Int, userID).query(query);  // Use sql.Int for parameter type
+
+        // If the user is not found or not an admin
+        if (result.recordset.length === 0) {
+            return res.status(403).json({ error: 'Forbidden: You are not authorized as an admin' });
+        }
+
+        // If everything is okay, proceed to the next middleware or route handler
+        next();
+    } catch (error) {
+        console.error('Error fetching admin status:', error.message);
+        
+        // Additional handling for SQL errors or connection issues
+        if (error.code === 'ESOCKET') {
+            return res.status(500).json({ error: 'Database connection failed. Please try again later.' });
+        }
+        
+        // General error
+        return res.status(500).json({ error: 'Error fetching admin status', details: error.message });
+    }
 };
+
 
 // CORS Configuration
 const corsOptions = {
