@@ -1,57 +1,69 @@
 const express = require('express');
 const cors = require('cors');
 const router = express.Router();
-const { getPool } = require('../../db'); // Database connection pool
+const { getPool } = require('../../db');
 const jwt = require('jsonwebtoken');
 
-// Enable CORS for the backend
-router.use(cors({
-  origin: '*', // Allow requests from any origin (adjust this as needed for security)
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these HTTP methods
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allow Content-Type and Authorization headers
-}));
-
-// Helper function for database queries
-const executeQuery = async (query, params = {}) => {
-  const pool = await getPool();
-  try {
-    const request = pool.request();
-    
-    // Add parameters to the request using .input()
-    for (const param in params) {
-      request.input(param, params[param]);
-    }
-    
-    const result = await request.query(query);
-    return result.recordset;
-  } catch (error) {
-    throw new Error(`Database error: ${error.message}`);
-  }
+// Enable CORS for all origins
+const corsOptions = {
+  origin: '*', // Allow all origins (adjust for production)
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
+
+// Apply CORS middleware globally
+router.use(cors(corsOptions));
 
 // Middleware to verify if the user is an administrator
 const verifyAdmin = async (req, res, next) => {
-  // Extract the token from Authorization header
-  const token = req.headers['authorization']?.split(' ')[1]; // Bearer <token>
-  
+  const token = req.headers.authorization?.split(' ')[1];  // Extract JWT token from Authorization header
+
   if (!token) {
-    return res.status(403).send('Access denied. No token provided.');
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
   }
 
+  let decoded;
   try {
-    // Decode and verify the JWT token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    
-    // Check if the user is an admin
-    if (decoded.isAdmin) {
-      // If admin, pass control to the next middleware/route handler
-      req.user = decoded; // Attach decoded user info to request for further use
-      next();
-    } else {
-      return res.status(403).send('Access denied. Only administrators can perform this action.');
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');  // Verify token using the secret
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+
+  const { userID, isAdmin } = decoded;  // Get userID and isAdmin from decoded token
+
+  // Check if the user has admin privileges
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Forbidden: Only admin can access this resource' });
+  }
+
+  // Now we use the 'Administrador' table to check if the user is an admin
+  try {
+    const pool = await getPool();
+    const query = `
+      SELECT a.adminID, c.utilizadorAdministrador 
+      FROM dbo.Administrador a
+      JOIN dbo.Credenciais c ON a.credenciaisID = c.credenciaisID
+      WHERE a.adminID = @userID AND c.utilizadorAdministrador = 1`;  // Ensure this matches the schema and fields
+
+    const result = await pool.request().input('userID', userID).query(query);
+
+    // If the user is not found or not an admin
+    if (result.recordset.length === 0) {
+      return res.status(403).json({ error: 'Forbidden: You are not authorized as an admin' });
     }
+
+    // If everything is okay, proceed to the next middleware or route handler
+    next();
   } catch (error) {
-    return res.status(400).send('Invalid token.');
+    console.error('Error fetching admin status:', error.message);
+    
+    // Additional handling for SQL errors or connection issues
+    if (error.code === 'ESOCKET') {
+      return res.status(500).json({ error: 'Database connection failed. Please try again later.' });
+    }
+    
+    // General error
+    return res.status(500).json({ error: 'Error fetching admin status', details: error.message });
   }
 };
 
