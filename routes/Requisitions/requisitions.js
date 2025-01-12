@@ -550,7 +550,7 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
              servicoID AS destinoServicoID, 
              medicamentoID, 
              quantidade
-      FROM SERVICOSDB.dbo.Requisicao_Medicamento
+      FROM SERVICOSDB.dbo.Medicamento_Requisicao
       WHERE requisicaoID = @requisicaoID`;
 
     const requisitionDetails = await transaction.request()
