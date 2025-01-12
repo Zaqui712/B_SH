@@ -69,7 +69,7 @@ const verifyAdmin = async (req, res, next) => {
 const corsOptions = {
     origin: '*', // Replace with specific origin in production for security
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'x-user-role'],
+    allowedHeaders: ['Content-Type', 'x-user-role', 'Authorization'],  // Allow the Authorization header
 };
 
 router.use(cors(corsOptions));
