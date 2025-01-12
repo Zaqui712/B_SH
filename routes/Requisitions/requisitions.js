@@ -224,7 +224,7 @@ router.get('/all', async (req, res) => {
           SH.nomeServico,
           SH.servicoDisponivel24horas,
           SRH.nomeServico AS nomeServicoHospitalarRemetente,
-          E.nomeEstado AS nomeEstadoRequisicao,   -- Estado table join (optional)
+          E.descricao AS nomeEstadoRequisicao,   -- Corrected Estado table reference
           MR.medicamentoID,                       -- Medicamento table join
           MR.quantidade AS quantidadeMedicamento
       FROM 
@@ -236,7 +236,7 @@ router.get('/all', async (req, res) => {
       LEFT JOIN 
           SERVICOSDB.dbo.Servico_Hospitalar SRH ON R.servicoHospitalarRemetenteID = SRH.servicoID
       LEFT JOIN 
-          SERVICOSDB.dbo.Estado E ON R.estadoID = E.estadoID   -- Estado table join (optional, if Estado table exists)
+          SERVICOSDB.dbo.Estado E ON R.estadoID = E.estadoID   -- Estado table join with corrected column name
       LEFT JOIN 
           SERVICOSDB.dbo.Medicamento_Requisicao MR ON R.requisicaoID = MR.requisicaoID -- Medicamento table join
     `;
@@ -247,8 +247,6 @@ router.get('/all', async (req, res) => {
     res.status(500).json({ error: 'Error fetching requisitions' });
   }
 });
-
-
 
 // Approve request
 router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
