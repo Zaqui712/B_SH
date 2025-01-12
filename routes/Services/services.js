@@ -1,11 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const router = express.Router();
-const { executeQuery } = require('../../db');
+const { executeQuery, getPool } = require('../../db');  // Import getPool and executeQuery
 const jwt = require('jsonwebtoken'); // Importing the jwt package
 const sql = require('mssql'); // Import mssql package
-
-
 
 // Middleware to verify if the user is an administrator
 const verifyAdmin = async (req, res, next) => {
