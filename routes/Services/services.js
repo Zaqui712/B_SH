@@ -15,6 +15,7 @@ const verifyAdmin = async (req, res, next) => {
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');  // Verify token using the secret
   } catch (err) {
+    console.error('Error verifying token:', err);
     return res.status(401).json({ error: 'Unauthorized: Invalid token' });
   }
 
