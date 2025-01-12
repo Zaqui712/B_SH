@@ -16,12 +16,15 @@ const verifyAdmin = async (req, res, next) => {
     }
 
     let decoded;
-    try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');  // Verify token using the secret
-    } catch (err) {
-        console.error('Error verifying token:', err);
-        return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-    }
+	try {
+		decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+		console.log('Decoded token:', decoded);  // Add this log
+	} catch (err) {
+		console.error('Error verifying token:', err);
+		return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+	}
+	console.log('Admin check result:', result.recordset);  // Add this log
+
 
     const { userID, isAdmin } = decoded;  // Get userID and isAdmin from decoded token
 
