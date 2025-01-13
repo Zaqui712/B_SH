@@ -82,6 +82,9 @@ cron.schedule('* * * * *', async () => {
     // Filter encomendas to only include those that are approved by admin
     const approvedEncomendas = encomendasArray.filter(encomenda => encomenda.aprovadoPorAdministrador === true);
 
+    // Log the number of approved encomendas
+    console.log(`Number of approved encomendas: ${approvedEncomendas.length}`);
+
     // Variable to count the number of successful sends
     let sentCount = 0;
 
@@ -89,6 +92,7 @@ cron.schedule('* * * * *', async () => {
     if (approvedEncomendas.length > 0) {
       for (const encomenda of approvedEncomendas) {
         try {
+          console.log(`Sending encomenda ID: ${encomenda.encomendaID}`);
           const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', {
             encomenda
           });
