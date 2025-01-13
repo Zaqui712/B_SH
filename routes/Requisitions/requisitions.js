@@ -67,10 +67,7 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
-
-
-
-
+//CREATE
 router.post('/create', async (req, res) => {
   const { estadoID, aprovadoPorAdministrador, requisicaoCompleta, dataRequisicao, dataEntrega, medicamentos, servicoHospitalarRemetenteID } = req.body;
   console.log('Received request body:', req.body);
@@ -546,12 +543,14 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
 
     // Fetch requisition details
     const requisitionDetailsQuery = `
-      SELECT servicoHospitalarRemetenteID AS origemServicoID, 
-             servicoID AS destinoServicoID, 
-             medicamentoID, 
-             quantidade
-      FROM SERVICOSDB.dbo.Medicamento_Requisicao
-      WHERE requisicaoID = @requisicaoID`;
+      SELECT r.servicoHospitalarRemetenteID AS origemServicoID, 
+       s.servicoID AS destinoServicoID, 
+       mr.medicamentoID, 
+       mr.quantidade
+		FROM SERVICOSDB.dbo.Medicamento_Requisicao mr
+		JOIN SERVICOSDB.dbo.Requisicao r ON mr.requisicaoID = r.requisicaoID
+		JOIN SERVICOSDB.dbo.Servico_Hospitalar s ON s.servicoID = r.servicoHospitalarRemetenteID
+		WHERE mr.requisicaoID = @requisicaoID;`;
 
     const requisitionDetails = await transaction.request()
       .input('requisicaoID', requisicaoID)
