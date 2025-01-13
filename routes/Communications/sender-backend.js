@@ -78,7 +78,7 @@ cron.schedule('* * * * *', async () => {
     if (encomendasArray.length > 0) {
       for (const encomenda of encomendasArray) {
         try {
-          const response = await axios.post('http://4.251.113.179:3000/receive-encomenda', {
+          const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', {
             encomenda
           });
           console.log(`Encomenda ${encomenda.encomendaID} sent successfully:`, response.data);
