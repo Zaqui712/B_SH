@@ -524,6 +524,7 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
 });
 
 // Update and change stock for requisition completion
+// Update and change stock for requisition completion
 router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
   let { requisicaoID } = req.params;
 
@@ -637,6 +638,7 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
     res.status(500).json({ error: 'Error completing requisition', details: error.message });
   }
 });
+
 
 // CANCEL
 router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
