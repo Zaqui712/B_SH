@@ -10,7 +10,7 @@ const app = express();
 app.use(express.json());
 
 // Supplier routes
-const supplierRoutes = require('./routes/Supplier/supplier');
+const supplierRoutes = require('./routes/Supplier/supplier'); // Adjust the path based on your file structure
 app.use('/api/supplier', supplierRoutes);
 
 // Requisitions
@@ -69,3 +69,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+
