@@ -50,11 +50,11 @@ app.use('/api/products', productsRoutes);
 
 // Communications Receiver
 const receiverOrders = require('./routes/Communications/receiver-backend');
-app.use('/api/receiver-backend', receiverOrders);
+app.use('/api/communications', receiverOrders);
 
 // Communications Sender
 const senderOrders = require('./routes/Products/sender-backend');
-app.use('/api/sender-backend', senderOrders);
+app.use('/api/communications', senderOrders);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
