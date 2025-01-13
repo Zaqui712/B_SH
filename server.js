@@ -33,8 +33,11 @@ app.use('/api/notifications', notificationsRoutes);
 // Products
 const productsRoutes = require('./routes/Products/products');
 app.use('/api/products', productsRoutes);
-// Communications 
-	//ADD HERE
+// Communications
+const receiverRoutes = require('./routes/Communications/receiver-backend');
+const senderRoutes = require('./routes/Communications/sender-backend');
+app.use('/receive', receiverRoutes);  // Adjust route prefix as needed
+app.use('/send', senderRoutes);      // Adjust route prefix as needed
 // Supplier routes
 const supplierRoutes = require('./routes/Supplier/supplier');
 app.use('/api/supplier', supplierRoutes);
