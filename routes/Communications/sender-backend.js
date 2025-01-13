@@ -94,7 +94,7 @@ cron.schedule('* * * * *', async () => {
 		  try {
 			console.log(`Sending encomenda ID: ${encomenda.encomendaID}`);
 
-			// Create a simplified request body
+			// Create the request body
 			const requestBody = {
 			  encomendaID: encomenda.encomendaID,
 			  estadoID: encomenda.estadoID,
@@ -106,13 +106,15 @@ cron.schedule('* * * * *', async () => {
 			  }))
 			};
 
+			// Log the request body to see if it contains data
+			console.log('Request Body:', JSON.stringify(requestBody, null, 2));
+
 			const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', requestBody, {
 			  headers: {
 				'Content-Type': 'application/json'
 			  }
 			});
 
-			// If successful, log the success
 			console.log(`Encomenda ${encomenda.encomendaID} sent successfully:`, response.status, response.data);
 			sentCount++;
 		  } catch (error) {
@@ -124,6 +126,7 @@ cron.schedule('* * * * *', async () => {
 			}
 		  }
 		});
+
 
       // Wait for all promises to resolve
       await Promise.all(sendPromises);
