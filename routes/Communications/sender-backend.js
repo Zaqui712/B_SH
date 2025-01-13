@@ -1,7 +1,8 @@
-
+//sender-backend.js
 const express = require('express');
 const cron = require('node-cron');
 const axios = require('axios');
+const sql = require('mssql'); // Assuming you're using SQL Server
 const { getPool } = require('../../db'); // Assuming you are using this to interact with the database
 
 const app = express();

@@ -1,8 +1,10 @@
+//receiver-backend.js
 const express = require('express');
 const app = express();
 const { getPool } = require('../../db'); // Assuming you have a function to interact with the database
 const axios = require('axios');
-const PORT = 3001;
+const sql = require('mssql'); // Assuming you're using SQL Server
+const PORT = 5000;
 
 // Middleware to parse incoming JSON data
 app.use(express.json());
