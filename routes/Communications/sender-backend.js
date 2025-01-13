@@ -85,7 +85,7 @@ cron.schedule('* * * * *', async () => {
           const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', {
             encomenda
           });
-          console.log(`Encomenda ${encomenda.encomendaID} sent successfully:`, response.data);
+		  console.log(`Encomenda ${encomenda.encomendaID} sent successfully:`, response.status, response.data);
         } catch (error) {
           console.error(`Error sending encomenda ${encomenda.encomendaID}:`, error.message);
         }
