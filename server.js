@@ -50,11 +50,12 @@ app.use('/api/products', productsRoutes);
 
 // Communications Receiver
 const receiverOrders = require('./routes/Communications/receiver-backend');
-app.use('/api/communications', receiverOrders);
+app.use('/api/communications/receiver', receiverOrders);  // Changed to a unique path
 
 // Communications Sender
 const senderOrders = require('./routes/Products/sender-backend');
-app.use('/api/communications', senderOrders);
+app.use('/api/communications/sender', senderOrders);  // Changed to a unique path
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
