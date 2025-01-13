@@ -10,7 +10,7 @@ const PORT = 5000;
 router.use(express.json());
 
 // Endpoint to receive orders from sender backend
-router.post('/receive-encomenda', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const encomenda = req.body.encomenda; // The encomenda sent by the sender backend
 
