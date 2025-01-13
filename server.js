@@ -49,13 +49,15 @@ const productsRoutes = require('./routes/Products/products');
 app.use('/api/products', productsRoutes);
 
 // Communications Receiver
-const receiverOrders = require('./routes/Communications/receiver-backend');
-app.use('/api/communications/receiver', receiverOrders);  // Changed to a unique path
+const receiverRoutes = require('./receiver-backend');  // Adjust path as needed
+app.use('/receiver', receiverRoutes);  // Mount receiver routes on /receiver path
 
 // Communications Sender
-const senderOrders = require('./routes/Products/sender-backend');
-app.use('/api/communications/sender', senderOrders);  // Changed to a unique path
+const senderRoutes = require('./sender-backend');  // Adjust path as needed
+app.use('/sender', senderRoutes);  // Mount sender routes on /sender path
 
+
+// Import the sender and receiver route modules
 
 // Error handling middleware
 app.use((err, req, res, next) => {
