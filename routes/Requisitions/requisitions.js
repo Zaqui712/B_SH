@@ -523,7 +523,7 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
   }
 });
 
-//update and change stock
+// Update and change stock for requisition completion
 router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
   let { requisicaoID } = req.params;
 
@@ -544,12 +544,11 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
     // Fetch requisition details
     const requisitionDetailsQuery = `
       SELECT r.servicoHospitalarRemetenteID AS origemServicoID, 
-             s.servicoID AS destinoServicoID, 
+             r.servicoHospitalarDestinoID AS destinoServicoID, 
              mr.medicamentoID, 
              mr.quantidade
       FROM SERVICOSDB.dbo.Medicamento_Requisicao mr
       JOIN SERVICOSDB.dbo.Requisicao r ON mr.requisicaoID = r.requisicaoID
-      JOIN SERVICOSDB.dbo.Servico_Hospitalar s ON s.servicoID = r.servicoHospitalarRemetenteID
       WHERE mr.requisicaoID = @requisicaoID;
     `;
 
@@ -566,6 +565,20 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
     // Update stock for each medication
     for (const { origemServicoID, destinoServicoID, medicamentoID, quantidade } of requisitionDetails.recordset) {
       console.log(`Processing stock update for medicamentoID: ${medicamentoID}, quantidade: ${quantidade}, origemServicoID: ${origemServicoID}, destinoServicoID: ${destinoServicoID}`);
+
+      // Log stock before update
+      const stockBeforeQuery = `
+        SELECT servicoID, quantidadeDisponivel 
+        FROM Medicamento_Servico_Hospitalar
+        WHERE medicamentoID = @medicamentoID AND (servicoID = @origemServicoID OR servicoID = @destinoServicoID)
+      `;
+      const stockBefore = await transaction.request()
+        .input('medicamentoID', medicamentoID)
+        .input('origemServicoID', origemServicoID)
+        .input('destinoServicoID', destinoServicoID)
+        .query(stockBeforeQuery);
+
+      console.log('Stock levels before update:', stockBefore.recordset);
 
       // Remove stock from source service
       const removeStockQuery = `
@@ -635,8 +648,6 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
     res.status(500).json({ error: 'Error completing requisition', details: error.message });
   }
 });
-
-
 
 // CANCEL
 router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
