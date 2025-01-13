@@ -2,8 +2,13 @@ const express = require('express');
 const cron = require('node-cron');
 const axios = require('axios');
 const { getPool } = require('./db'); // Assuming you are using this to interact with the database
+
+// Initialize the Express app
+const app = express();
+
 // Middleware
 app.use(express.json());
+
 // Supplier routes
 const supplierRoutes = require('./routes/Supplier/supplier');
 app.use('/api/supplier', supplierRoutes);
@@ -52,9 +57,6 @@ app.use('/receive', receiverRoutes);  // Adjust route prefix as needed
 // Communications Sender
 const senderRoutes = require('./routes/Communications/sender-backend');
 app.use('/send', senderRoutes);  // Adjust route prefix as needed
-
-
-// Import the sender and receiver route modules
 
 // Error handling middleware
 app.use((err, req, res, next) => {
