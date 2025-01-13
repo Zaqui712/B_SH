@@ -4,10 +4,6 @@ const axios = require('axios');
 const { getPool } = require('./db'); // Assuming you are using this to interact with the database
 // Middleware
 app.use(express.json());
-
-// Database connection (if necessary for pool usage)
-const { getPool } = require('./db');
-
 // Supplier routes
 const supplierRoutes = require('./routes/Supplier/supplier');
 app.use('/api/supplier', supplierRoutes);
