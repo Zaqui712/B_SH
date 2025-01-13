@@ -13,21 +13,20 @@ cron.schedule('* * * * *', async () => {
     const pool = await getPool();
 
     // Query to fetch all orders (encomendas) along with associated medications
-    const query = `
-      SELECT e.encomendaID, e.estadoID, e.adminID, e.fornecedorID, e.encomendaCompleta,
-             e.aprovadoPorAdministrador, e.dataEncomenda, e.dataEntrega, e.quantidadeEnviada,
-             e.profissionalID, a.nomeProprio AS adminNome, a.ultimoNome AS adminUltimoNome,
-             f.nomeFornecedor, p.nomeProprio AS profissionalNome, p.ultimoNome AS profissionalUltimoNome,
-             sh.nomeServico AS servicoNome,
-             me.medicamentoID, m.nomeMedicamento, me.quantidade AS medicamentoQuantidade
-      FROM SERVICOSDB.dbo.Encomenda e
-      LEFT JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
-      LEFT JOIN SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
-      LEFT JOIN SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID
-      LEFT JOIN SERVICOSDB.dbo.Servico_Hospitalar sh ON p.servicoID = sh.servicoID
-      LEFT JOIN SERVICOSDB.dbo.Medicamento_Encomenda me ON e.encomendaID = me.encomendaID
-      LEFT JOIN SERVICOSDB.dbo.Medicamento m ON me.medicamentoID = m.medicamentoID
-    `;
+    const query = 
+      `SELECT e.encomendaID, e.estadoID, e.adminID, e.fornecedorID, e.encomendaCompleta,
+              e.aprovadoPorAdministrador, e.dataEncomenda, e.dataEntrega, e.quantidadeEnviada,
+              e.profissionalID, a.nomeProprio AS adminNome, a.ultimoNome AS adminUltimoNome,
+              f.nomeFornecedor, p.nomeProprio AS profissionalNome, p.ultimoNome AS profissionalUltimoNome,
+              sh.nomeServico AS servicoNome,
+              me.medicamentoID, m.nomeMedicamento, me.quantidade AS medicamentoQuantidade
+       FROM SERVICOSDB.dbo.Encomenda e
+       LEFT JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
+       LEFT JOIN SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID
+       LEFT JOIN SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID
+       LEFT JOIN SERVICOSDB.dbo.Servico_Hospitalar sh ON p.servicoID = sh.servicoID
+       LEFT JOIN SERVICOSDB.dbo.Medicamento_Encomenda me ON e.encomendaID = me.encomendaID
+       LEFT JOIN SERVICOSDB.dbo.Medicamento m ON me.medicamentoID = m.medicamentoID`;
     const result = await pool.request().query(query);
 
     // Check if we have any results
@@ -76,7 +75,7 @@ cron.schedule('* * * * *', async () => {
     const encomendasArray = Object.values(encomendas);
 
     // Filter encomendas to only include those that are approved by admin
-    const approvedEncomendas = encomendasArray.filter(encomenda => encomenda.aprovadoPorAdministrador === true);
+    const approvedEncomendas = encomendasArray.filter(encomenda => encomenda.aprovadoPorAdministrador === 1);
 
     // Variable to count the number of successful sends
     let sentCount = 0;
