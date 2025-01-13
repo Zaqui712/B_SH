@@ -74,6 +74,11 @@ cron.schedule('* * * * *', async () => {
     // Convert the encomendas object to an array
     const encomendasArray = Object.values(encomendas);
 
+    // Log the values of aprovadoPorAdministrador for each encomenda
+    encomendasArray.forEach(encomenda => {
+      console.log(`Encomenda ID: ${encomenda.encomendaID}, AprovadoPorAdministrador: ${encomenda.aprovadoPorAdministrador}`);
+    });
+
     // Filter encomendas to only include those that are approved by admin
     const approvedEncomendas = encomendasArray.filter(encomenda => encomenda.aprovadoPorAdministrador === 1);
 
