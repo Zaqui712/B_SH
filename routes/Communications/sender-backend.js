@@ -91,19 +91,39 @@ cron.schedule('* * * * *', async () => {
     // Send each approved encomenda to the backend one by one using Promise.all
     if (approvedEncomendas.length > 0) {
       const sendPromises = approvedEncomendas.map(async (encomenda) => {
-        try {
-          console.log(`Sending encomenda ID: ${encomenda.encomendaID}`);
-          const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', {
-            encomenda
-          });
+		  try {
+			console.log(`Sending encomenda ID: ${encomenda.encomendaID}`);
 
-          // If the request is successful, increment the counter
-          console.log(`Encomenda ${encomenda.encomendaID} sent successfully:`, response.status, response.data);
-          sentCount++;
-        } catch (error) {
-          console.error(`Error sending encomenda ${encomenda.encomendaID}:`, error.message);
-        }
-      });
+			// Create a simplified request body
+			const requestBody = {
+			  encomendaID: encomenda.encomendaID,
+			  estadoID: encomenda.estadoID,
+			  fornecedorID: encomenda.fornecedorID,
+			  quantidadeEnviada: encomenda.quantidadeEnviada,
+			  medicamentos: encomenda.medicamentos.map(med => ({
+				medicamentoID: med.medicamentoID,
+				quantidade: med.quantidade
+			  }))
+			};
+
+			const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', requestBody, {
+			  headers: {
+				'Content-Type': 'application/json'
+			  }
+			});
+
+			// If successful, log the success
+			console.log(`Encomenda ${encomenda.encomendaID} sent successfully:`, response.status, response.data);
+			sentCount++;
+		  } catch (error) {
+			// Log detailed error information
+			if (error.response) {
+			  console.error(`Error sending encomenda ${encomenda.encomendaID}:`, error.response.status, error.response.data);
+			} else {
+			  console.error(`Error sending encomenda ${encomenda.encomendaID}:`, error.message);
+			}
+		  }
+		});
 
       // Wait for all promises to resolve
       await Promise.all(sendPromises);
