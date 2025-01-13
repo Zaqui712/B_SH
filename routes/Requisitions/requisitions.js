@@ -582,6 +582,7 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
         .query(removeStockQuery);
 
       console.log(`Rows affected (remove stock):`, removeResult.rowsAffected);
+      console.log(`Stock removed from origemServicoID: ${origemServicoID} for medicamentoID: ${medicamentoID}, quantidade: ${quantidade}`);
 
       if (removeResult.rowsAffected[0] === 0) {
         throw new Error(`Insufficient stock or invalid origin service for medicamentoID ${medicamentoID}`);
@@ -601,6 +602,7 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
         .query(addStockQuery);
 
       console.log(`Rows affected (add stock):`, addResult.rowsAffected);
+      console.log(`Stock added to destinoServicoID: ${destinoServicoID} for medicamentoID: ${medicamentoID}, quantidade: ${quantidade}`);
     }
 
     // Update estadoID to 4 (completed)
@@ -635,10 +637,6 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
     res.status(500).json({ error: 'Error completing requisition', details: error.message });
   }
 });
-
-
-
-
 
 // CANCEL
 router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
