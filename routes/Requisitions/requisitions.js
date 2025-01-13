@@ -636,6 +636,7 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
 });
 
 
+
 // CANCEL
 router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
   let { requisicaoID } = req.params;
