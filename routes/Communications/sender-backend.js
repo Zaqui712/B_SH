@@ -78,6 +78,9 @@ cron.schedule('* * * * *', async () => {
     // Filter encomendas to only include those that are approved by admin
     const approvedEncomendas = encomendasArray.filter(encomenda => encomenda.aprovadoPorAdministrador === true);
 
+    // Variable to count the number of successful sends
+    let sentCount = 0;
+
     // Send each approved encomenda to the backend one by one
     if (approvedEncomendas.length > 0) {
       for (const encomenda of approvedEncomendas) {
@@ -85,7 +88,10 @@ cron.schedule('* * * * *', async () => {
           const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', {
             encomenda
           });
-		  console.log(`Encomenda ${encomenda.encomendaID} sent successfully:`, response.status, response.data);
+
+          // If the request is successful, increment the counter
+          console.log(`Encomenda ${encomenda.encomendaID} sent successfully:`, response.status, response.data);
+          sentCount++;
         } catch (error) {
           console.error(`Error sending encomenda ${encomenda.encomendaID}:`, error.message);
         }
@@ -93,6 +99,9 @@ cron.schedule('* * * * *', async () => {
     } else {
       console.log('No approved encomendas to send.');
     }
+
+    // Log how many encomendas were sent successfully
+    console.log(`Total encomendas sent: ${sentCount}`);
   } catch (error) {
     console.error('Error executing minute task:', error.message);
   }
