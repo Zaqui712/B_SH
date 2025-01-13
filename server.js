@@ -40,8 +40,8 @@ const receiverRoutes = require('./routes/Communications/receiver-backend');
 console.log(senderRoutes);  // Add this line to check the imported object
 console.log(receiverRoutes); // Add this line to check the imported object
 
-app.use('/send', senderRoutes);
-app.use('/receive', receiverRoutes);
+app.use('/api/send', senderRoutes);
+app.use('/api/receive', receiverRoutes);
 
 // Supplier routes
 const supplierRoutes = require('./routes/Supplier/supplier');
