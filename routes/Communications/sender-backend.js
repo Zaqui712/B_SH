@@ -100,13 +100,16 @@ cron.schedule('* * * * *', async () => {
 			  estadoID: encomenda.estadoID,
 			  fornecedorID: encomenda.fornecedorID,
 			  quantidadeEnviada: encomenda.quantidadeEnviada,
+			  nomeFornecedor: encomenda.nomeFornecedor, // Add fornecedor name
+			  profissionalNome: encomenda.profissionalNome, // Add profissional name
 			  medicamentos: encomenda.medicamentos.map(med => ({
 				medicamentoID: med.medicamentoID,
+				nomeMedicamento: med.nomeMedicamento, // Add medicamento name
 				quantidade: med.quantidade
 			  }))
 			};
 
-			// Log the request body to see if it contains data
+			// Log the request body to see if it contains data in the correct format
 			console.log('Request Body:', JSON.stringify(requestBody, null, 2));
 
 			const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', requestBody, {
@@ -126,7 +129,6 @@ cron.schedule('* * * * *', async () => {
 			}
 		  }
 		});
-
 
       // Wait for all promises to resolve
       await Promise.all(sendPromises);
