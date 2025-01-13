@@ -10,7 +10,8 @@ const app = express();
 app.use(express.json());
 
 // Supplier routes
-const supplierRoutes = require('./routes/Supplier/supplier'); // Adjust the path based on your file structure
+const supplierRoutes = require('./routes/Supplier/supplier');
+console.log(supplierRoutes);  // Check what is being imported
 app.use('/api/supplier', supplierRoutes);
 
 // Requisitions
