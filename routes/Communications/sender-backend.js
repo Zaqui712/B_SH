@@ -1,11 +1,10 @@
-//sender-backend.js
 const express = require('express');
 const cron = require('node-cron');
 const axios = require('axios');
 const sql = require('mssql'); // Assuming you're using SQL Server
 const { getPool } = require('../../db'); // Assuming you are using this to interact with the database
 
-const app = express();
+const router = express.Router();
 
 // Example of a task that runs every minute
 cron.schedule('* * * * *', async () => {
@@ -97,12 +96,9 @@ cron.schedule('* * * * *', async () => {
 });
 
 // Example route
-app.get('/', (req, res) => {
-  res.send('Express app with scheduled tasks');
+router.get('/', (req, res) => {
+  res.send('Express router with scheduled tasks');
 });
 
-// Start the Express server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Export the router
+module.exports = router;

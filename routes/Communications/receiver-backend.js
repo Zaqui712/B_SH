@@ -1,16 +1,16 @@
-//receiver-backend.js
 const express = require('express');
-const app = express();
 const { getPool } = require('../../db'); // Assuming you have a function to interact with the database
 const axios = require('axios');
 const sql = require('mssql'); // Assuming you're using SQL Server
+
+const router = express.Router();
 const PORT = 5000;
 
 // Middleware to parse incoming JSON data
-app.use(express.json());
+router.use(express.json());
 
 // Endpoint to receive orders from sender backend
-app.post('/receive-encomenda', async (req, res) => {
+router.post('/receive-encomenda', async (req, res) => {
   try {
     const encomenda = req.body.encomenda; // The encomenda sent by the sender backend
 
@@ -106,7 +106,5 @@ app.post('/receive-encomenda', async (req, res) => {
   }
 });
 
-// Start the receiver server
-app.listen(PORT, () => {
-  console.log(`Receiver backend running on port ${PORT}`);
-});
+// Export the router
+module.exports = router;
