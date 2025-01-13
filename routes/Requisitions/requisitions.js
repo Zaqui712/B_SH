@@ -543,12 +543,13 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
 
     // Fetch requisition details
     const requisitionDetailsQuery = `
-      SELECT r.servicoHospitalarRemetenteID AS origemServicoID, 
-             r.servicoID AS destinoServicoID, 
+      SELECT ps.servicoID AS origemServicoID, 
+             r.servicoHospitalarRemetenteID AS destinoServicoID, 
              mr.medicamentoID, 
              mr.quantidade
       FROM SERVICOSDB.dbo.Medicamento_Requisicao mr
       JOIN SERVICOSDB.dbo.Requisicao r ON mr.requisicaoID = r.requisicaoID
+      JOIN SERVICOSDB.dbo.Profissional_De_Saude ps ON r.profissionalID = ps.profissionalID
       WHERE mr.requisicaoID = @requisicaoID;
     `;
 
@@ -634,6 +635,7 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
     res.status(500).json({ error: 'Error completing requisition', details: error.message });
   }
 });
+
 
 
 
