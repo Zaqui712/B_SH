@@ -8,13 +8,12 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-/*
+
 // Supplier routes
 const supplierRoutes = require('./routes/Supplier/supplier');
-console.log(supplierRoutes);  // Make sure it's a valid router
-console.log(typeof supplierRoutes);  // It should log 'object'
-console.log(supplierRoutes instanceof express.Router);  // This should be true if it's a Router
-*/
+console.log(supplierRoutes); // This should log the router, not just an object
+app.use('/api/supplier', supplierRoutes);  // Should be a valid router
+
 // Requisitions
 const requisitionsRoutes = require('./routes/Requisitions/requisitions');
 const automaticRequisitionsRoutes = require('./routes/Requisitions/automaticRequisitions');
