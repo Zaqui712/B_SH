@@ -75,9 +75,12 @@ cron.schedule('* * * * *', async () => {
     // Convert the encomendas object to an array
     const encomendasArray = Object.values(encomendas);
 
-    // Send each encomenda to the backend one by one
-    if (encomendasArray.length > 0) {
-      for (const encomenda of encomendasArray) {
+    // Filter encomendas to only include those that are approved by admin
+    const approvedEncomendas = encomendasArray.filter(encomenda => encomenda.aprovadoPorAdministrador === true);
+
+    // Send each approved encomenda to the backend one by one
+    if (approvedEncomendas.length > 0) {
+      for (const encomenda of approvedEncomendas) {
         try {
           const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', {
             encomenda
@@ -88,7 +91,7 @@ cron.schedule('* * * * *', async () => {
         }
       }
     } else {
-      console.log('No encomendas to send.');
+      console.log('No approved encomendas to send.');
     }
   } catch (error) {
     console.error('Error executing minute task:', error.message);
