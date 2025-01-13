@@ -34,10 +34,14 @@ app.use('/api/notifications', notificationsRoutes);
 const productsRoutes = require('./routes/Products/products');
 app.use('/api/products', productsRoutes);
 // Communications
-const receiverRoutes = require('./routes/Communications/receiver-backend');
 const senderRoutes = require('./routes/Communications/sender-backend');
-app.use('/receive', receiverRoutes);  // Adjust route prefix as needed
-app.use('/send', senderRoutes);      // Adjust route prefix as needed
+const receiverRoutes = require('./routes/Communications/receiver-backend');
+
+console.log(senderRoutes);  // Add this line to check the imported object
+console.log(receiverRoutes); // Add this line to check the imported object
+
+app.use('/send', senderRoutes);
+app.use('/receive', receiverRoutes);
 // Supplier routes
 const supplierRoutes = require('./routes/Supplier/supplier');
 app.use('/api/supplier', supplierRoutes);
