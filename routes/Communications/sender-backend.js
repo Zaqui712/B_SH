@@ -13,7 +13,7 @@ cron.schedule('* * * * *', async () => {
     const pool = await getPool();
 
     // Query to fetch all orders (encomendas) along with associated medications
-    const query = 
+    const query =
       `SELECT e.encomendaID, e.estadoID, e.adminID, e.fornecedorID, e.encomendaCompleta,
               e.aprovadoPorAdministrador, e.dataEncomenda, e.dataEntrega, e.quantidadeEnviada,
               e.profissionalID, a.nomeProprio AS adminNome, a.ultimoNome AS adminUltimoNome,
@@ -88,50 +88,46 @@ cron.schedule('* * * * *', async () => {
     // Variable to count the number of successful sends
     let sentCount = 0;
 
-    // Send each approved encomenda to the backend one by one using Promise.all
+    // Send the approved encomendas as an array in a single request
     if (approvedEncomendas.length > 0) {
-      const sendPromises = approvedEncomendas.map(async (encomenda) => {
-		  try {
-			console.log(`Sending encomenda ID: ${encomenda.encomendaID}`);
+      try {
+        // Create the request body that includes all approved encomendas
+        const requestBody = {
+          encomendas: approvedEncomendas.map(encomenda => ({
+            encomendaID: encomenda.encomendaID,
+            estadoID: encomenda.estadoID,
+            fornecedorID: encomenda.fornecedorID,
+            quantidadeEnviada: encomenda.quantidadeEnviada,
+            nomeFornecedor: encomenda.nomeFornecedor,
+            profissionalNome: encomenda.profissionalNome,
+            medicamentos: encomenda.medicamentos.map(med => ({
+              medicamentoID: med.medicamentoID,
+              nomeMedicamento: med.nomeMedicamento,
+              quantidade: med.quantidade
+            }))
+          }))
+        };
 
-			// Create the request body
-			const requestBody = {
-			  encomendaID: encomenda.encomendaID,
-			  estadoID: encomenda.estadoID,
-			  fornecedorID: encomenda.fornecedorID,
-			  quantidadeEnviada: encomenda.quantidadeEnviada,
-			  nomeFornecedor: encomenda.nomeFornecedor, // Add fornecedor name
-			  profissionalNome: encomenda.profissionalNome, // Add profissional name
-			  medicamentos: encomenda.medicamentos.map(med => ({
-				medicamentoID: med.medicamentoID,
-				nomeMedicamento: med.nomeMedicamento, // Add medicamento name
-				quantidade: med.quantidade
-			  }))
-			};
+        // Log the request body to see if it contains data in the correct format
+        console.log('Request Body:', JSON.stringify(requestBody, null, 2));
 
-			// Log the request body to see if it contains data in the correct format
-			console.log('Request Body:', JSON.stringify(requestBody, null, 2));
+        // Send the request with the array of encomendas
+        const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', requestBody, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
 
-			const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', requestBody, {
-			  headers: {
-				'Content-Type': 'application/json'
-			  }
-			});
-
-			console.log(`Encomenda ${encomenda.encomendaID} sent successfully:`, response.status, response.data);
-			sentCount++;
-		  } catch (error) {
-			// Log detailed error information
-			if (error.response) {
-			  console.error(`Error sending encomenda ${encomenda.encomendaID}:`, error.response.status, error.response.data);
-			} else {
-			  console.error(`Error sending encomenda ${encomenda.encomendaID}:`, error.message);
-			}
-		  }
-		});
-
-      // Wait for all promises to resolve
-      await Promise.all(sendPromises);
+        console.log(`Encomendas sent successfully:`, response.status, response.data);
+        sentCount += approvedEncomendas.length; // Increment sent count by the number of encomendas sent
+      } catch (error) {
+        // Log detailed error information
+        if (error.response) {
+          console.error('Error sending encomendas:', error.response.status, error.response.data);
+        } else {
+          console.error('Error sending encomendas:', error.message);
+        }
+      }
     } else {
       console.log('No approved encomendas to send.');
     }
