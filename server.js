@@ -11,8 +11,9 @@ app.use(express.json());
 
 // Supplier routes
 const supplierRoutes = require('./routes/Supplier/supplier');
-console.log(supplierRoutes);  // Check what is being imported
-app.use('/api/supplier', supplierRoutes);
+console.log(supplierRoutes);  // Make sure it's a valid router
+console.log(typeof supplierRoutes);  // It should log 'object'
+console.log(supplierRoutes instanceof express.Router);  // This should be true if it's a Router
 
 // Requisitions
 const requisitionsRoutes = require('./routes/Requisitions/requisitions');
