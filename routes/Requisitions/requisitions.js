@@ -523,7 +523,7 @@ router.put('/approve/:requisicaoID', verifyAdmin, async (req, res) => {
   }
 });
 
-// SET COMPLETE REQUISITION WITH STOCK ADJUSTMENTS
+//update and change stock
 router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
   let { requisicaoID } = req.params;
 
@@ -538,23 +538,26 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
 
   try {
     // Start the transaction
-    transaction = pool.transaction();
+    transaction = await pool.transaction();
     await transaction.begin();
 
     // Fetch requisition details
     const requisitionDetailsQuery = `
       SELECT r.servicoHospitalarRemetenteID AS origemServicoID, 
-       s.servicoID AS destinoServicoID, 
-       mr.medicamentoID, 
-       mr.quantidade
-		FROM SERVICOSDB.dbo.Medicamento_Requisicao mr
-		JOIN SERVICOSDB.dbo.Requisicao r ON mr.requisicaoID = r.requisicaoID
-		JOIN SERVICOSDB.dbo.Servico_Hospitalar s ON s.servicoID = r.servicoHospitalarRemetenteID
-		WHERE mr.requisicaoID = @requisicaoID;`;
+             s.servicoID AS destinoServicoID, 
+             mr.medicamentoID, 
+             mr.quantidade
+      FROM SERVICOSDB.dbo.Medicamento_Requisicao mr
+      JOIN SERVICOSDB.dbo.Requisicao r ON mr.requisicaoID = r.requisicaoID
+      JOIN SERVICOSDB.dbo.Servico_Hospitalar s ON s.servicoID = r.servicoHospitalarRemetenteID
+      WHERE mr.requisicaoID = @requisicaoID;
+    `;
 
     const requisitionDetails = await transaction.request()
       .input('requisicaoID', requisicaoID)
       .query(requisitionDetailsQuery);
+
+    console.log('Requisition Details:', requisitionDetails.recordset);
 
     if (requisitionDetails.recordset.length === 0) {
       throw new Error(`Requisition not found or has no associated medications: requisicaoID ${requisicaoID}`);
@@ -562,18 +565,23 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
 
     // Update stock for each medication
     for (const { origemServicoID, destinoServicoID, medicamentoID, quantidade } of requisitionDetails.recordset) {
+      console.log(`Processing stock update for medicamentoID: ${medicamentoID}, quantidade: ${quantidade}, origemServicoID: ${origemServicoID}, destinoServicoID: ${destinoServicoID}`);
+
       // Remove stock from source service
       const removeStockQuery = `
         UPDATE Medicamento_Servico_Hospitalar
         SET quantidadeDisponivel = quantidadeDisponivel - @quantidade
         WHERE medicamentoID = @medicamentoID AND servicoID = @origemServicoID
-          AND quantidadeDisponivel >= @quantidade`;
+          AND quantidadeDisponivel >= @quantidade
+      `;
 
       const removeResult = await transaction.request()
         .input('quantidade', quantidade)
         .input('medicamentoID', medicamentoID)
         .input('origemServicoID', origemServicoID)
         .query(removeStockQuery);
+
+      console.log(`Rows affected (remove stock):`, removeResult.rowsAffected);
 
       if (removeResult.rowsAffected[0] === 0) {
         throw new Error(`Insufficient stock or invalid source service for medicamentoID ${medicamentoID}`);
@@ -583,24 +591,30 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
       const addStockQuery = `
         UPDATE Medicamento_Servico_Hospitalar
         SET quantidadeDisponivel = quantidadeDisponivel + @quantidade
-        WHERE medicamentoID = @medicamentoID AND servicoID = @destinoServicoID`;
+        WHERE medicamentoID = @medicamentoID AND servicoID = @destinoServicoID
+      `;
 
-      await transaction.request()
+      const addResult = await transaction.request()
         .input('quantidade', quantidade)
         .input('medicamentoID', medicamentoID)
         .input('destinoServicoID', destinoServicoID)
         .query(addStockQuery);
+
+      console.log(`Rows affected (add stock):`, addResult.rowsAffected);
     }
 
     // Update estadoID to 4 (completed)
     const updateEstadoQuery = `
       UPDATE SERVICOSDB.dbo.Requisicao
       SET estadoID = 4
-      WHERE requisicaoID = @requisicaoID`;
+      WHERE requisicaoID = @requisicaoID
+    `;
 
-    await transaction.request()
+    const estadoResult = await transaction.request()
       .input('requisicaoID', requisicaoID)
       .query(updateEstadoQuery);
+
+    console.log(`Rows affected (update requisition status):`, estadoResult.rowsAffected);
 
     // Commit the transaction
     await transaction.commit();
@@ -621,6 +635,7 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
     res.status(500).json({ error: 'Error completing requisition', details: error.message });
   }
 });
+
 
 
 // CANCEL
