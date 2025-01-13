@@ -543,8 +543,8 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
 
     // Fetch requisition details
     const requisitionDetailsQuery = `
-      SELECT ps.servicoID AS origemServicoID, 
-             r.servicoHospitalarRemetenteID AS destinoServicoID, 
+      SELECT r.servicoHospitalarRemetenteID AS origemServicoID, 
+             ps.servicoID AS destinoServicoID, 
              mr.medicamentoID, 
              mr.quantidade
       FROM SERVICOSDB.dbo.Medicamento_Requisicao mr
