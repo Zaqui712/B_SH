@@ -48,6 +48,14 @@ app.use('/api/notifications', notificationsRoutes);
 const productsRoutes = require('./routes/Products/products');
 app.use('/api/products', productsRoutes);
 
+// Communications Receiver
+const receiverOrders = require('./routes/Communications/receiver-backend');
+app.use('/api/receiver-backend', receiverOrders);
+
+// Communications Sender
+const senderOrders = require('./routes/Products/sender-backend');
+app.use('/api/sender-backend', senderOrders);
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
