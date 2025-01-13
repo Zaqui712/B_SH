@@ -88,9 +88,9 @@ cron.schedule('* * * * *', async () => {
     // Variable to count the number of successful sends
     let sentCount = 0;
 
-    // Send each approved encomenda to the backend one by one
+    // Send each approved encomenda to the backend one by one using Promise.all
     if (approvedEncomendas.length > 0) {
-      for (const encomenda of approvedEncomendas) {
+      const sendPromises = approvedEncomendas.map(async (encomenda) => {
         try {
           console.log(`Sending encomenda ID: ${encomenda.encomendaID}`);
           const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', {
@@ -103,7 +103,10 @@ cron.schedule('* * * * *', async () => {
         } catch (error) {
           console.error(`Error sending encomenda ${encomenda.encomendaID}:`, error.message);
         }
-      }
+      });
+
+      // Wait for all promises to resolve
+      await Promise.all(sendPromises);
     } else {
       console.log('No approved encomendas to send.');
     }
