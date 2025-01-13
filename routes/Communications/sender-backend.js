@@ -80,7 +80,7 @@ cron.schedule('* * * * *', async () => {
     });
 
     // Filter encomendas to only include those that are approved by admin
-    const approvedEncomendas = encomendasArray.filter(encomenda => encomenda.aprovadoPorAdministrador === 1);
+    const approvedEncomendas = encomendasArray.filter(encomenda => encomenda.aprovadoPorAdministrador === true);
 
     // Variable to count the number of successful sends
     let sentCount = 0;
