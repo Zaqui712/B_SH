@@ -566,21 +566,7 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
     for (const { origemServicoID, destinoServicoID, medicamentoID, quantidade } of requisitionDetails.recordset) {
       console.log(`Processing stock update for medicamentoID: ${medicamentoID}, quantidade: ${quantidade}, origemServicoID: ${origemServicoID}, destinoServicoID: ${destinoServicoID}`);
 
-      // Log stock before update
-      const stockBeforeQuery = `
-        SELECT servicoID, quantidadeDisponivel 
-        FROM Medicamento_Servico_Hospitalar
-        WHERE medicamentoID = @medicamentoID AND (servicoID = @origemServicoID OR servicoID = @destinoServicoID)
-      `;
-      const stockBefore = await transaction.request()
-        .input('medicamentoID', medicamentoID)
-        .input('origemServicoID', origemServicoID)
-        .input('destinoServicoID', destinoServicoID)
-        .query(stockBeforeQuery);
-
-      console.log('Stock levels before update:', stockBefore.recordset);
-
-      // Remove stock from source service
+      // Remove stock from origin service
       const removeStockQuery = `
         UPDATE Medicamento_Servico_Hospitalar
         SET quantidadeDisponivel = quantidadeDisponivel - @quantidade
@@ -597,7 +583,7 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
       console.log(`Rows affected (remove stock):`, removeResult.rowsAffected);
 
       if (removeResult.rowsAffected[0] === 0) {
-        throw new Error(`Insufficient stock or invalid source service for medicamentoID ${medicamentoID}`);
+        throw new Error(`Insufficient stock or invalid origin service for medicamentoID ${medicamentoID}`);
       }
 
       // Add stock to destination service
@@ -648,6 +634,7 @@ router.put('/complete/:requisicaoID', verifyAdmin, async (req, res) => {
     res.status(500).json({ error: 'Error completing requisition', details: error.message });
   }
 });
+
 
 // CANCEL
 router.put('/cancel/:requisicaoID', verifyAdmin, async (req, res) => {
