@@ -49,12 +49,12 @@ const productsRoutes = require('./routes/Products/products');
 app.use('/api/products', productsRoutes);
 
 // Communications Receiver
-const receiverRoutes = require('./receiver-backend');  // Adjust path as needed
-app.use('/receiver', receiverRoutes);  // Mount receiver routes on /receiver path
+const receiverRoutes = require('./routes/Communications/receiver-backend');
+app.use('/receive', receiverRoutes);  // Adjust route prefix as needed
 
 // Communications Sender
-const senderRoutes = require('./sender-backend');  // Adjust path as needed
-app.use('/sender', senderRoutes);  // Mount sender routes on /sender path
+const senderRoutes = require('./routes/Communications/sender-backend');
+app.use('/send', senderRoutes);  // Adjust route prefix as needed
 
 
 // Import the sender and receiver route modules
