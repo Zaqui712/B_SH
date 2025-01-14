@@ -53,14 +53,19 @@ async function addStockToMedicamentoServicoHospitalar(encomendaID) {
       .input('encomendaID', sql.Int, encomendaID)
       .query(encomendaQuery);
 
+    console.log(`Encomenda query result: `, encomendaResult.recordset);
+
     if (encomendaResult.recordset.length === 0) {
+      console.error('Encomenda not found for encomendaID: ', encomendaID);
       throw new Error('Encomenda not found');
     }
 
     const profissionalID = encomendaResult.recordset[0].profissionalID;
+    console.log(`Fetched profissionalID: ${profissionalID}`);
 
     // Get the servicoID for the profissional
     const servicoID = await getServicoIDFromProfissional(profissionalID);
+    console.log(`Fetched servicoID: ${servicoID}`);
 
     // Query to get the quantities of Medicamento from Medicamento_Encomenda
     const medicamentoQuery = `
@@ -74,10 +79,15 @@ async function addStockToMedicamentoServicoHospitalar(encomendaID) {
       .input('encomendaID', sql.Int, encomendaID)
       .query(medicamentoQuery);
 
+    console.log(`Medicamento query result: `, medicamentoResult.recordset);
+
     if (medicamentoResult.recordset.length > 0) {
       // Loop through each medicamento and update the stock in Medicamento_Servico_Hospitalar
       for (const row of medicamentoResult.recordset) {
         const { quantidadeAdicionar, medicamentoID } = row;
+
+        // Log the medicamento details
+        console.log(`Processing medicamentoID: ${medicamentoID}, quantity to add: ${quantidadeAdicionar}`);
 
         // Update stock in Medicamento_Servico_Hospitalar
         const updateStockQuery = `
@@ -86,17 +96,20 @@ async function addStockToMedicamentoServicoHospitalar(encomendaID) {
           WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
         `;
 
-        console.log(`Adding stock for medicamentoID: ${medicamentoID}, servicoID: ${servicoID}, quantity: ${quantidadeAdicionar}`);
+        console.log(`Running query to update stock for medicamentoID: ${medicamentoID}, servicoID: ${servicoID}, quantity: ${quantidadeAdicionar}`);
 
         await pool.request()
           .input('quantidadeAdicionar', sql.Int, quantidadeAdicionar)
           .input('medicamentoID', sql.Int, medicamentoID)
           .input('servicoID', sql.Int, servicoID)
           .query(updateStockQuery);
+
+        console.log(`Stock updated for medicamentoID: ${medicamentoID}`);
       }
 
-      console.log('Stock updated in Medicamento_Servico_Hospitalar');
+      console.log('All stock updates completed in Medicamento_Servico_Hospitalar');
     } else {
+      console.error('No medicamento found for encomendaID: ' + encomendaID);
       throw new Error('No medicamento found for encomendaID: ' + encomendaID);
     }
 
@@ -118,7 +131,10 @@ async function getServicoIDFromProfissional(profissionalID) {
       .input('profissionalID', sql.Int, profissionalID)
       .query(query);
 
+    console.log(`ServicoID query result: `, result.recordset);
+
     if (result.recordset.length === 0) {
+      console.error('Profissional not found for profissionalID: ', profissionalID);
       throw new Error('Profissional not found');
     }
 
