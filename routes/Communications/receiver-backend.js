@@ -44,30 +44,30 @@ async function updateEstado(encomendaID) {
 }
 // Function to add stock for Medicamento_Servico_Hospitalar
 async function addStockToMedicamentoServicoHospitalar(encomendaID) {
+  console.log('addStockToMedicamentoServicoHospitalar called with encomendaID:', encomendaID);
+  
   try {
     const pool = await getPool();
+    console.log('Database pool acquired for adding stock');
 
-    // Fetch the profissionalID from Encomenda
     const encomendaQuery = `SELECT profissionalID FROM Encomenda WHERE encomendaID = @encomendaID`;
     const encomendaResult = await pool.request()
       .input('encomendaID', sql.Int, encomendaID)
       .query(encomendaQuery);
 
-    console.log(`Encomenda query result: `, encomendaResult.recordset);
+    console.log('Encomenda query executed. Result:', encomendaResult.recordset);
 
     if (encomendaResult.recordset.length === 0) {
-      console.error('Encomenda not found for encomendaID: ', encomendaID);
+      console.error('Encomenda not found for encomendaID:', encomendaID);
       throw new Error('Encomenda not found');
     }
 
     const profissionalID = encomendaResult.recordset[0].profissionalID;
-    console.log(`Fetched profissionalID: ${profissionalID}`);
+    console.log('Fetched profissionalID:', profissionalID);
 
-    // Get the servicoID for the profissional
     const servicoID = await getServicoIDFromProfissional(profissionalID);
-    console.log(`Fetched servicoID: ${servicoID}`);
+    console.log('Fetched servicoID:', servicoID);
 
-    // Query to get the quantities of Medicamento from Medicamento_Encomenda
     const medicamentoQuery = `
       SELECT me.quantidadeAdicionar, p.medicamentoID
       FROM Medicamento_Encomenda me
@@ -79,24 +79,19 @@ async function addStockToMedicamentoServicoHospitalar(encomendaID) {
       .input('encomendaID', sql.Int, encomendaID)
       .query(medicamentoQuery);
 
-    console.log(`Medicamento query result: `, medicamentoResult.recordset);
+    console.log('Medicamento query result:', medicamentoResult.recordset);
 
     if (medicamentoResult.recordset.length > 0) {
-      // Loop through each medicamento and update the stock in Medicamento_Servico_Hospitalar
       for (const row of medicamentoResult.recordset) {
         const { quantidadeAdicionar, medicamentoID } = row;
 
-        // Log the medicamento details
-        console.log(`Processing medicamentoID: ${medicamentoID}, quantity to add: ${quantidadeAdicionar}`);
+        console.log(`Updating stock for medicamentoID: ${medicamentoID}, quantity: ${quantidadeAdicionar}`);
 
-        // Update stock in Medicamento_Servico_Hospitalar
         const updateStockQuery = `
           UPDATE Medicamento_Servico_Hospitalar
           SET quantidadeDisponivel = quantidadeDisponivel + @quantidadeAdicionar
           WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
         `;
-
-        console.log(`Running query to update stock for medicamentoID: ${medicamentoID}, servicoID: ${servicoID}, quantity: ${quantidadeAdicionar}`);
 
         await pool.request()
           .input('quantidadeAdicionar', sql.Int, quantidadeAdicionar)
@@ -107,15 +102,14 @@ async function addStockToMedicamentoServicoHospitalar(encomendaID) {
         console.log(`Stock updated for medicamentoID: ${medicamentoID}`);
       }
 
-      console.log('All stock updates completed in Medicamento_Servico_Hospitalar');
+      console.log('All stock updates completed');
     } else {
-      console.error('No medicamento found for encomendaID: ' + encomendaID);
-      throw new Error('No medicamento found for encomendaID: ' + encomendaID);
+      console.error('No medicamento found for encomendaID:', encomendaID);
+      throw new Error('No medicamento found');
     }
-
   } catch (error) {
-    console.error('Error adding stock to Medicamento_Servico_Hospitalar:', error.message);
-    throw new Error('Failed to add stock to Medicamento_Servico_Hospitalar');
+    console.error('Error adding stock to Medicamento_Servico_Hospitalar:', error);
+    throw new Error('Failed to add stock');
   }
 }
 
