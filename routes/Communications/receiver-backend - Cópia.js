@@ -14,6 +14,36 @@ app.use(cors()); // Enable CORS for all routes
 // Middleware to parse incoming JSON data
 app.use(express.json()); // Use express's built-in JSON parser middleware globally
 
+// Function to update estadoID of encomenda
+async function updateEstado(encomendaID) {
+  try {
+    const pool = await getPool(); // Make sure this is using the correct database connection
+
+    const updateEstadoQuery = `
+      UPDATE Encomenda
+      SET estadoID = @estadoID
+      WHERE encomendaID = @encomendaID
+    `;
+
+    // Log the query and parameters for debugging
+    console.log(`Running query to update estadoID for encomendaID: ${encomendaID}`);
+
+    const result = await pool.request()
+      .input('estadoID', sql.Int, 4)               // Set estadoID to 4
+      .input('encomendaID', sql.Int, encomendaID)  // Use encomendaID to update the correct record
+      .query(updateEstadoQuery);
+
+    // Log the result to confirm the update
+    console.log(`estadoID updated to 4 for encomendaID: ${encomendaID}`);
+    console.log(result); // Inspect the result object
+
+  } catch (error) {
+    console.error('Error updating estadoID:', error.message);
+    throw new Error('Failed to update estadoID');
+  }
+}
+
+
 // Endpoint to receive orders from sender backend
 router.post('/', async (req, res) => {
   try {
@@ -28,41 +58,42 @@ router.post('/', async (req, res) => {
 
     // Fetch the existing encomenda data from your database using encomendaID
     const pool = await getPool();
+
     const existingEncomendaQuery = `SELECT * FROM Encomenda WHERE encomendaID = @encomendaID`;
     const existingEncomendaResult = await pool.request()
       .input('encomendaID', encomendaID)  // Use encomendaSHID as encomendaID
       .query(existingEncomendaQuery);
 
-    // Check if the encomenda exists in the database
     if (existingEncomendaResult.recordset.length === 0) {
       return res.status(404).json({ message: 'Encomenda not found' });
     }
 
-    // Get the existing encomenda data
-    const existingEncomenda = existingEncomendaResult.recordset[0];
-
-    // Check if encomenda is already complete (encomendaCompleta = true)
-    if (existingEncomenda.encomendaCompleta === true) {
-      return res.status(400).json({ message: 'Encomenda is already complete, cannot be updated' });
-    }
-
-    // If the encomenda exists and is not complete, update encomendaCompleta, dataEntrega, and estado
+    // If the values need to be updated
     const updateQuery = `
       UPDATE Encomenda
       SET encomendaCompleta = @encomendaCompleta,
-          dataEntrega = @dataEntrega,
-          estado = @estado
+          dataEntrega = @dataEntrega
       WHERE encomendaID = @encomendaID
     `;
 
     await pool.request()
       .input('encomendaCompleta', sql.Bit, encomenda.encomendaCompleta)  // Update encomendaCompleta
       .input('dataEntrega', sql.Date, encomenda.dataEntrega)              // Update dataEntrega
-      .input('estado', sql.Int, 4)                                         // Set estado to 4
       .input('encomendaID', sql.Int, encomendaID)                         // Use encomendaID instead of encomendaSHID
       .query(updateQuery);
 
-    return res.json({ message: 'Encomenda updated successfully' });
+    // Now call the separate async function to update the estado
+    await updateEstado(encomendaID); // Update estado to 4
+
+    // Verify the update by querying the Encomenda state
+    const verifyEstadoQuery = `SELECT estado FROM Encomenda WHERE encomendaID = @encomendaID`;
+    const estadoResult = await pool.request()
+      .input('encomendaID', encomendaID)
+      .query(verifyEstadoQuery);
+
+    console.log('Estado after update:', estadoResult.recordset[0].estado);
+
+    return res.json({ message: 'Encomenda updated and estado set to 4 successfully' });
   } catch (error) {
     console.error('Error receiving encomenda:', error.message);
     res.status(500).json({ message: 'Error processing the encomenda', error: error.message });
