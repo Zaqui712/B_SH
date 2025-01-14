@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors'); // Import cors package
 const { getPool } = require('../../db'); // Assuming you have a function to interact with the database
-const axios = require('axios');
 const sql = require('mssql');
 const PORT = 5000;
 
@@ -59,7 +58,6 @@ async function updateStock(medicamentoID, servicoID, quantidade) {
 router.post('/', async (req, res) => {
   try {
     const encomenda = req.body.encomenda; // The encomenda sent by the sender backend
-    console.log('Received encomenda:', encomenda); // Log the encomenda object
 
     if (!encomenda || !encomenda.encomendaSHID || !encomenda.quantidade) {
       return res.status(400).json({ message: 'Invalid encomenda data' });
