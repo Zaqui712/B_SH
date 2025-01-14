@@ -28,37 +28,23 @@ router.post('/', async (req, res) => {
 
     // Fetch the existing encomenda data from your database using encomendaID
     const pool = await getPool();
+
     const existingEncomendaQuery = `SELECT * FROM Encomenda WHERE encomendaID = @encomendaID`;
     const existingEncomendaResult = await pool.request()
       .input('encomendaID', encomendaID)  // Use encomendaSHID as encomendaID
       .query(existingEncomendaQuery);
-
-    // Check if the encomenda exists in the database
-    if (existingEncomendaResult.recordset.length === 0) {
-      return res.status(404).json({ message: 'Encomenda not found' });
-    }
-
-    // Get the existing encomenda data
-    const existingEncomenda = existingEncomendaResult.recordset[0];
-
-    // Check if encomenda is already complete (encomendaCompleta = true)
-    if (existingEncomenda.encomendaCompleta === true) {
-      return res.status(400).json({ message: 'Encomenda is already complete, cannot be updated' });
-    }
-
-    // If the encomenda exists and is not complete, update encomendaCompleta, dataEntrega, and estado
+	  
+    // If the values need to be updated
     const updateQuery = `
       UPDATE Encomenda
       SET encomendaCompleta = @encomendaCompleta,
-          dataEntrega = @dataEntrega,
-          estado = @estado
+          dataEntrega = @dataEntrega
       WHERE encomendaID = @encomendaID
     `;
 
     await pool.request()
       .input('encomendaCompleta', sql.Bit, encomenda.encomendaCompleta)  // Update encomendaCompleta
       .input('dataEntrega', sql.Date, encomenda.dataEntrega)              // Update dataEntrega
-      .input('estado', sql.Int, 4)                                         // Set estado to 4
       .input('encomendaID', sql.Int, encomendaID)                         // Use encomendaID instead of encomendaSHID
       .query(updateQuery);
 
