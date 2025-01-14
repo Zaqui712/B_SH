@@ -14,6 +14,29 @@ app.use(cors()); // Enable CORS for all routes
 // Middleware to parse incoming JSON data
 app.use(express.json()); // Use express's built-in JSON parser middleware globally
 
+// Function to update estado of encomenda
+async function updateEstado(encomendaID) {
+  try {
+    const pool = await getPool();
+
+    const updateEstadoQuery = `
+      UPDATE Encomenda
+      SET estado = @estado
+      WHERE encomendaID = @encomendaID
+    `;
+
+    await pool.request()
+      .input('estado', sql.Int, 4)               // Set estado to 4
+      .input('encomendaID', sql.Int, encomendaID) // Use encomendaID to update the correct record
+      .query(updateEstadoQuery);
+    
+    console.log(`Estado updated to 4 for encomendaID: ${encomendaID}`);
+  } catch (error) {
+    console.error('Error updating estado:', error.message);
+    throw new Error('Failed to update estado');
+  }
+}
+
 // Endpoint to receive orders from sender backend
 router.post('/', async (req, res) => {
   try {
@@ -52,17 +75,8 @@ router.post('/', async (req, res) => {
       .input('encomendaID', sql.Int, encomendaID)                         // Use encomendaID instead of encomendaSHID
       .query(updateQuery);
 
-    // Now update the estado to 4
-    const updateEstadoQuery = `
-      UPDATE Encomenda
-      SET estado = @estado
-      WHERE encomendaID = @encomendaID
-    `;
-
-    await pool.request()
-      .input('estado', sql.Int, 4)               // Set estado to 4
-      .input('encomendaID', sql.Int, encomendaID) // Use encomendaID to update the correct record
-      .query(updateEstadoQuery);
+    // Now call the separate async function to update the estado
+    await updateEstado(encomendaID); // Update estado to 4
 
     return res.json({ message: 'Encomenda updated and estado set to 4 successfully' });
   } catch (error) {
