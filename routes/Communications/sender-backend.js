@@ -79,66 +79,66 @@ cron.schedule('* * * * *', async () => {
       console.log(`Encomenda ID: ${encomenda.encomendaID}, AprovadoPorAdministrador: ${encomenda.aprovadoPorAdministrador}`);
     });
 
-    // Filter encomendas to only include those that are approved by admin and not complete
-    const approvedIncompleteEncomendas = encomendasArray.filter(encomenda => 
-      encomenda.aprovadoPorAdministrador === true && encomenda.encomendaCompleta !== true
-    );
+    // Map the encomendas and ensure that null dates are handled
+const approvedIncompleteEncomendas = encomendasArray.filter(encomenda => 
+  encomenda.aprovadoPorAdministrador === true && encomenda.encomendaCompleta !== true
+);
 
-    // Log the number of approved and incomplete encomendas
-    console.log(`Number of approved and incomplete encomendas: ${approvedIncompleteEncomendas.length}`);
+// Log the number of approved and incomplete encomendas
+console.log(`Number of approved and incomplete encomendas: ${approvedIncompleteEncomendas.length}`);
 
-    // Variable to count the number of successful sends
-    let sentCount = 0;
+// Variable to count the number of successful sends
+let sentCount = 0;
 
-    // Send the approved and incomplete encomendas as an array in a single request
-    if (approvedIncompleteEncomendas.length > 0) {
-      try {
-        // Create the request body that includes all approved and incomplete encomendas
-        const requestBody = {
-          encomendas: approvedIncompleteEncomendas.map(encomenda => ({
-            encomendaID: encomenda.encomendaID,
-            estadoID: encomenda.estadoID,
-            fornecedorID: encomenda.fornecedorID,
-            quantidadeEnviada: encomenda.quantidadeEnviada,
-            nomeFornecedor: encomenda.nomeFornecedor,
-            profissionalNome: encomenda.profissionalNome,
-            medicamentos: encomenda.medicamentos.map(med => ({
-              medicamentoID: med.medicamentoID,
-              nomeMedicamento: med.nomeMedicamento,
-              quantidade: med.quantidade
-            }))
-          }))
-        };
+// Send the approved and incomplete encomendas as an array in a single request
+if (approvedIncompleteEncomendas.length > 0) {
+  try {
+    // Create the request body that includes all approved and incomplete encomendas
+    const requestBody = {
+      encomendas: approvedIncompleteEncomendas.map(encomenda => ({
+        encomendaID: encomenda.encomendaID,
+        estadoID: encomenda.estadoID,
+        fornecedorID: encomenda.fornecedorID,
+        quantidadeEnviada: encomenda.quantidadeEnviada,
+        nomeFornecedor: encomenda.nomeFornecedor,
+        profissionalNome: encomenda.profissionalNome,
+        // Include dates, ensuring null values are handled
+        dataEncomenda: encomenda.dataEncomenda ? encomenda.dataEncomenda : null,
+        dataEntrega: encomenda.dataEntrega ? encomenda.dataEntrega : null,
+        medicamentos: encomenda.medicamentos.map(med => ({
+          medicamentoID: med.medicamentoID,
+          nomeMedicamento: med.nomeMedicamento,
+          quantidade: med.quantidade
+        }))
+      }))
+    };
 
-        // Log the request body to see if it contains data in the correct format
-        console.log('Request Body:', JSON.stringify(requestBody, null, 2));
+    // Log the request body to see if it contains data in the correct format
+    console.log('Request Body:', JSON.stringify(requestBody, null, 2));
 
-        // Send the request with the array of encomendas
-        const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', requestBody, {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-
-        console.log(`Encomendas sent successfully:`, response.status, response.data);
-        sentCount += approvedIncompleteEncomendas.length; // Increment sent count by the number of encomendas sent
-      } catch (error) {
-        // Log detailed error information
-        if (error.response) {
-          console.error('Error sending encomendas:', error.response.status, error.response.data);
-        } else {
-          console.error('Error sending encomendas:', error.message);
-        }
+    // Send the request with the array of encomendas
+    const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', requestBody, {
+      headers: {
+        'Content-Type': 'application/json'
       }
-    } else {
-      console.log('No approved and incomplete encomendas to send.');
-    }
+    });
 
-    // Log how many encomendas were sent successfully
-    console.log(`Total encomendas sent: ${sentCount}`);
+    console.log(`Encomendas sent successfully:`, response.status, response.data);
+    sentCount += approvedIncompleteEncomendas.length; // Increment sent count by the number of encomendas sent
   } catch (error) {
-    console.error('Error executing minute task:', error.message);
+    // Log detailed error information
+    if (error.response) {
+      console.error('Error sending encomendas:', error.response.status, error.response.data);
+    } else {
+      console.error('Error sending encomendas:', error.message);
+    }
   }
+} else {
+  console.log('No approved and incomplete encomendas to send.');
+}
+
+// Log how many encomendas were sent successfully
+console.log(`Total encomendas sent: ${sentCount}`);
 });
 
 // Example route
