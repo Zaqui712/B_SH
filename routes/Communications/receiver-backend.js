@@ -1,120 +1,73 @@
 const express = require('express');
-const cors = require('cors');
-const { getPool } = require('../../db');
+const cors = require('cors'); // Import cors package
+const { getPool } = require('../../db'); // Assuming you have a function to interact with the database
+const axios = require('axios');
 const sql = require('mssql');
 const PORT = 5000;
 
 const app = express();
-const router = express.Router();
+const router = express.Router(); // Use router to define routes
 
-app.use(cors());
-app.use(express.json());
+// Use cors middleware to allow cross-origin requests
+app.use(cors()); // Enable CORS for all routes
 
-// Function to update stock
-async function updateStock(medicamentoID, servicoID, quantidade) {
-  const pool = await getPool();
-
-  try {
-    const currentStockQuery = `
-      SELECT quantidadeDisponivel FROM Medicamento_Servico_Hospitalar 
-      WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
-    `;
-    const currentStockResult = await pool.request()
-      .input('medicamentoID', sql.Int, medicamentoID)
-      .input('servicoID', sql.Int, servicoID)
-      .query(currentStockQuery);
-
-    if (currentStockResult.recordset.length === 0) {
-      console.error('Medicamento not found for the given medicamentoID and servicoID');
-      throw new Error('Medicamento not found');
-    }
-
-    const currentStock = currentStockResult.recordset[0].quantidadeDisponivel;
-    console.log(`Current stock for medicamentoID ${medicamentoID} and servicoID ${servicoID}: ${currentStock}`);
-
-    const newStock = currentStock + quantidade;
-    console.log(`New stock calculated: ${newStock}`);
-
-    const updateStockQuery = `
-      UPDATE Medicamento_Servico_Hospitalar
-      SET quantidadeDisponivel = @newStock
-      WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
-    `;
-    await pool.request()
-      .input('newStock', sql.Int, newStock)
-      .input('medicamentoID', sql.Int, medicamentoID)
-      .input('servicoID', sql.Int, servicoID)
-      .query(updateStockQuery);
-
-    console.log('Stock updated successfully');
-  } catch (err) {
-    console.error('Error updating stock:', err.message);
-    throw new Error('Error updating stock');
-  }
-}
+// Middleware to parse incoming JSON data
+app.use(express.json()); // Use express's built-in JSON parser middleware globally
 
 // Endpoint to receive orders from sender backend
 router.post('/', async (req, res) => {
   try {
-    const encomenda = req.body.encomenda;
-    
-    // Validate encomenda data
-    if (!encomenda || !encomenda.encomendaSHID || !encomenda.quantidade || !encomenda.medicamentoID || !encomenda.servicoID) {
+    const encomenda = req.body.encomenda; // The encomenda sent by the sender backend
+
+    if (!encomenda || !encomenda.encomendaSHID) {
       return res.status(400).json({ message: 'Invalid encomenda data' });
     }
 
+    // Convert encomendaSHID to encomendaID
     const encomendaID = encomenda.encomendaSHID;
-    const quantidade = encomenda.quantidade;
 
-    console.log(`Processing encomenda with encomendaID: ${encomendaID}, quantity: ${quantidade}`);
-
+    // Fetch the existing encomenda data from your database using encomendaID
     const pool = await getPool();
     const existingEncomendaQuery = `SELECT * FROM Encomenda WHERE encomendaID = @encomendaID`;
     const existingEncomendaResult = await pool.request()
-      .input('encomendaID', encomendaID)
+      .input('encomendaID', encomendaID)  // Use encomendaSHID as encomendaID
       .query(existingEncomendaQuery);
 
+    // Check if the encomenda exists in the database
     if (existingEncomendaResult.recordset.length === 0) {
       return res.status(404).json({ message: 'Encomenda not found' });
     }
 
+    // Get the existing encomenda data
     const existingEncomenda = existingEncomendaResult.recordset[0];
-    console.log('Existing encomenda data:', existingEncomenda);
 
+    // Check if encomenda is already complete (encomendaCompleta = true)
     if (existingEncomenda.encomendaCompleta === true) {
       return res.status(400).json({ message: 'Encomenda is already complete, cannot be updated' });
     }
 
-    const medicamentoID = encomenda.medicamentoID;
-    const servicoID = encomenda.servicoID;
-
-    console.log(`Medicamento ID: ${medicamentoID}, Servico ID: ${servicoID}`);
-
-    // Update stock first
-    await updateStock(medicamentoID, servicoID, quantidade);
-
-    // Update encomenda data
-    const updateEncomendaQuery = `
+    // If the encomenda exists and is not complete, update encomendaCompleta, dataEntrega, and estado
+    const updateQuery = `
       UPDATE Encomenda
       SET encomendaCompleta = @encomendaCompleta,
           dataEntrega = @dataEntrega,
           estado = @estado
       WHERE encomendaID = @encomendaID
     `;
+
     await pool.request()
-      .input('encomendaCompleta', sql.Bit, encomenda.encomendaCompleta)
-      .input('dataEntrega', sql.Date, encomenda.dataEntrega)
-      .input('estado', sql.Int, 4)
-      .input('encomendaID', sql.Int, encomendaID)
-      .query(updateEncomendaQuery);
+      .input('encomendaCompleta', sql.Bit, encomenda.encomendaCompleta)  // Update encomendaCompleta
+      .input('dataEntrega', sql.Date, encomenda.dataEntrega)              // Update dataEntrega
+      .input('estado', sql.Int, 4)                                         // Set estado to 4
+      .input('encomendaID', sql.Int, encomendaID)                         // Use encomendaID instead of encomendaSHID
+      .query(updateQuery);
 
-    console.log('Encomenda and stock updated successfully');
-
-    return res.json({ message: 'Encomenda updated and stock adjusted successfully' });
+    return res.json({ message: 'Encomenda updated successfully' });
   } catch (error) {
     console.error('Error receiving encomenda:', error.message);
     res.status(500).json({ message: 'Error processing the encomenda', error: error.message });
   }
 });
 
+// Export the router
 module.exports = router;
