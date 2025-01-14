@@ -113,32 +113,31 @@ if (approvedIncompleteEncomendas.length > 0) {
       }))
     };
 
-    // Log the request body to see if it contains data in the correct format
     console.log('Request Body:', JSON.stringify(requestBody, null, 2));
 
-    // Send the request with the array of encomendas
-    const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', requestBody, {
-      headers: {
-        'Content-Type': 'application/json'
+        const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', requestBody, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log(`Encomendas sent successfully:`, response.status, response.data);
+        sentCount += approvedIncompleteEncomendas.length;
+      } catch (error) {
+        if (error.response) {
+          console.error('Error sending encomendas:', error.response.status, error.response.data);
+        } else {
+          console.error('Error sending encomendas:', error.message);
+        }
       }
-    });
-
-    console.log(`Encomendas sent successfully:`, response.status, response.data);
-    sentCount += approvedIncompleteEncomendas.length; // Increment sent count by the number of encomendas sent
-  } catch (error) {
-    // Log detailed error information
-    if (error.response) {
-      console.error('Error sending encomendas:', error.response.status, error.response.data);
     } else {
-      console.error('Error sending encomendas:', error.message);
+      console.log('No approved and incomplete encomendas to send.');
     }
-  }
-} else {
-  console.log('No approved and incomplete encomendas to send.');
-}
 
-// Log how many encomendas were sent successfully
-console.log(`Total encomendas sent: ${sentCount}`);
+    console.log(`Total encomendas sent: ${sentCount}`);
+  } catch (error) {
+    console.error('Error in scheduled task:', error.message);
+  }
 });
 
 // Example route
