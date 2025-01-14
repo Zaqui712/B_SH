@@ -17,11 +17,11 @@ app.use(express.json()); // Use express's built-in JSON parser middleware global
 // Function to update estadoID of encomenda
 async function updateEstado(encomendaID) {
   try {
-    const pool = await getPool();
+    const pool = await getPool(); // Make sure this is using the correct database connection
 
     const updateEstadoQuery = `
       UPDATE Encomenda
-      SET estadoID = @estadoID  // Use estadoID instead of estado
+      SET estadoID = @estadoID
       WHERE encomendaID = @encomendaID
     `;
 
