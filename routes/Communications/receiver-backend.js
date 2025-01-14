@@ -14,34 +14,35 @@ app.use(cors()); // Enable CORS for all routes
 // Middleware to parse incoming JSON data
 app.use(express.json()); // Use express's built-in JSON parser middleware globally
 
-// Function to update estado of encomenda
+// Function to update estadoID of encomenda
 async function updateEstado(encomendaID) {
   try {
     const pool = await getPool();
 
     const updateEstadoQuery = `
       UPDATE Encomenda
-      SET estado = @estado
+      SET estadoID = @estadoID  // Use estadoID instead of estado
       WHERE encomendaID = @encomendaID
     `;
 
     // Log the query and parameters for debugging
-    console.log(`Running query to update estado for encomendaID: ${encomendaID}`);
+    console.log(`Running query to update estadoID for encomendaID: ${encomendaID}`);
 
     const result = await pool.request()
-      .input('estado', sql.Int, 4)               // Set estado to 4
-      .input('encomendaID', sql.Int, encomendaID) // Use encomendaID to update the correct record
+      .input('estadoID', sql.Int, 4)               // Set estadoID to 4
+      .input('encomendaID', sql.Int, encomendaID)  // Use encomendaID to update the correct record
       .query(updateEstadoQuery);
 
     // Log the result to confirm the update
-    console.log(`Estado updated to 4 for encomendaID: ${encomendaID}`);
+    console.log(`estadoID updated to 4 for encomendaID: ${encomendaID}`);
     console.log(result); // Inspect the result object
 
   } catch (error) {
-    console.error('Error updating estado:', error.message);
-    throw new Error('Failed to update estado');
+    console.error('Error updating estadoID:', error.message);
+    throw new Error('Failed to update estadoID');
   }
 }
+
 
 // Endpoint to receive orders from sender backend
 router.post('/', async (req, res) => {
