@@ -33,7 +33,11 @@ router.post('/', async (req, res) => {
     const existingEncomendaResult = await pool.request()
       .input('encomendaID', encomendaID)  // Use encomendaSHID as encomendaID
       .query(existingEncomendaQuery);
-	  
+
+    if (existingEncomendaResult.recordset.length === 0) {
+      return res.status(404).json({ message: 'Encomenda not found' });
+    }
+
     // If the values need to be updated
     const updateQuery = `
       UPDATE Encomenda
@@ -48,7 +52,19 @@ router.post('/', async (req, res) => {
       .input('encomendaID', sql.Int, encomendaID)                         // Use encomendaID instead of encomendaSHID
       .query(updateQuery);
 
-    return res.json({ message: 'Encomenda updated successfully' });
+    // Now update the estado to 4
+    const updateEstadoQuery = `
+      UPDATE Encomenda
+      SET estado = @estado
+      WHERE encomendaID = @encomendaID
+    `;
+
+    await pool.request()
+      .input('estado', sql.Int, 4)               // Set estado to 4
+      .input('encomendaID', sql.Int, encomendaID) // Use encomendaID to update the correct record
+      .query(updateEstadoQuery);
+
+    return res.json({ message: 'Encomenda updated and estado set to 4 successfully' });
   } catch (error) {
     console.error('Error receiving encomenda:', error.message);
     res.status(500).json({ message: 'Error processing the encomenda', error: error.message });
