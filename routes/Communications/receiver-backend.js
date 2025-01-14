@@ -14,6 +14,47 @@ app.use(cors()); // Enable CORS for all routes
 // Middleware to parse incoming JSON data
 app.use(express.json()); // Use express's built-in JSON parser middleware globally
 
+// Function to update stock
+async function updateStock(medicamentoID, servicoID, quantidade) {
+  const pool = await getPool();
+
+  // Step 2: Get the current stock of the Medicamento_Servico_Hospitalar for the given medicamentoID and servicoID
+  const currentStockQuery = `
+    SELECT quantidadeDisponivel FROM Medicamento_Servico_Hospitalar 
+    WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
+  `;
+  const currentStockResult = await pool.request()
+    .input('medicamentoID', sql.Int, medicamentoID)
+    .input('servicoID', sql.Int, servicoID)
+    .query(currentStockQuery);
+
+  if (currentStockResult.recordset.length === 0) {
+    throw new Error('Medicamento not found for the given medicamentoID and servicoID');
+  }
+
+  const currentStock = currentStockResult.recordset[0].quantidadeDisponivel;
+  console.log(`Current stock for medicamentoID ${medicamentoID} and servicoID ${servicoID}: ${currentStock}`);
+
+  // Step 3: Calculate the new stock (existing stock + new quantity)
+  const newStock = currentStock + quantidade;
+  console.log(`New stock calculated: ${newStock}`);
+
+  // Step 4: Update the stock in Medicamento_Servico_Hospitalar with the new value
+  const updateStockQuery = `
+    UPDATE Medicamento_Servico_Hospitalar
+    SET quantidadeDisponivel = @newStock
+    WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
+  `;
+
+  const updateStockResult = await pool.request()
+    .input('newStock', sql.Int, newStock) // New stock after adding quantity
+    .input('medicamentoID', sql.Int, medicamentoID) // medicamentoID from encomenda
+    .input('servicoID', sql.Int, servicoID) // servicoID from encomenda
+    .query(updateStockQuery);
+
+  console.log('Stock updated successfully');
+}
+
 // Endpoint to receive orders from sender backend
 router.post('/', async (req, res) => {
   try {
@@ -56,41 +97,8 @@ router.post('/', async (req, res) => {
     const servicoID = encomenda.servicoID;
     console.log(`Medicamento ID: ${medicamentoID}, Servico ID: ${servicoID}`);
 
-    // Step 2: Get the current stock of the Medicamento_Servico_Hospitalar for the given medicamentoID and servicoID
-    const currentStockQuery = `
-      SELECT quantidadeDisponivel FROM Medicamento_Servico_Hospitalar 
-      WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
-    `;
-    const currentStockResult = await pool.request()
-      .input('medicamentoID', sql.Int, medicamentoID)
-      .input('servicoID', sql.Int, servicoID)
-      .query(currentStockQuery);
-
-    if (currentStockResult.recordset.length === 0) {
-      return res.status(404).json({ message: 'Medicamento not found for the given medicamentoID and servicoID' });
-    }
-
-    const currentStock = currentStockResult.recordset[0].quantidadeDisponivel;
-    console.log(`Current stock for medicamentoID ${medicamentoID} and servicoID ${servicoID}: ${currentStock}`); // Log current stock
-
-    // Step 3: Calculate the new stock (existing stock + new quantity)
-    const newStock = currentStock + quantidade;
-    console.log(`New stock calculated: ${newStock}`); // Log the new stock value
-
-    // Step 4: Update the stock in Medicamento_Servico_Hospitalar with the new value
-    const updateStockQuery = `
-      UPDATE Medicamento_Servico_Hospitalar
-      SET quantidadeDisponivel = @newStock
-      WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
-    `;
-    
-    const updateStockResult = await pool.request()
-      .input('newStock', sql.Int, newStock) // New stock after adding quantity
-      .input('medicamentoID', sql.Int, medicamentoID) // medicamentoID from encomenda
-      .input('servicoID', sql.Int, servicoID) // servicoID from encomenda
-      .query(updateStockQuery);
-    
-    console.log('Stock updated successfully'); // Log successful stock update
+    // Update the stock (this part is now in a separate function)
+    await updateStock(medicamentoID, servicoID, quantidade);
 
     // Update encomenda table with encomendaCompleta, dataEntrega, and estado
     const updateEncomendaQuery = `
