@@ -3,20 +3,17 @@ const cors = require('cors');
 const router = express.Router();
 const { getPool } = require('../../db');
 
-// Enable CORS for all origins
 const corsOptions = {
   origin: '*',
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// Apply CORS middleware globally
 router.use(cors(corsOptions));
 
 const Alerts = async (req, res) => {
   const pool = await getPool();
 
-  // Queries for alerts
   const checkMedicationsQuery = `
     SELECT msh.medicamentoID, msh.servicoID, msh.quantidadeDisponivel, msh.quantidadeMinima,
            m.nomeMedicamento, m.tipoMedicamento
@@ -26,18 +23,11 @@ const Alerts = async (req, res) => {
   `;
 
   const pendingOrdersQuery = `
-    SELECT e.encomendaID, e.dataEncomenda, e.aprovadoPorAdministrador, e.quantidadeEnviada, 
-           e.estadoID, e.encomendaCompleta, e.dataEntrega,
-           a.nomeProprio, a.ultimoNome,
-           es.descricao AS estadoDescricao,  -- To include the state description
-           f.nomeFornecedor, f.contactoFornecedor,
-           p.nomeProprio AS profissionalNome, p.ultimoNome AS profissionalUltimoNome  -- Include the professional details
-    FROM SERVICOSDB.dbo.Encomenda e
-    JOIN SERVICOSDB.dbo.Administrador a ON e.adminID = a.adminID
-    JOIN SERVICOSDB.dbo.Estado es ON e.estadoID = es.estadoID  -- Joining Estado to get the state description
-    JOIN SERVICOSDB.dbo.Fornecedor f ON e.fornecedorID = f.fornecedorID  -- Joining Fornecedor to get supplier info
-    JOIN SERVICOSDB.dbo.Profissional_De_Saude p ON e.profissionalID = p.profissionalID  -- Join with Profissional_De_Saude
-    WHERE e.aprovadoPorAdministrador = 0;
+    SELECT enc.encomendaID,  enc.estadoID,  enc.dataEncomenda,  enc.quantidadeEnviada,  enc.profissionalID,
+	pro.nomeProprio, pro.ultimoNome 
+	FROM Encomenda enc
+	JOIN Profissional_De_Saude pro ON enc.profissionalID = pro.profissionalID
+	WHERE enc.aprovadoPorAdministrador IS NULL
   `;
 
   const pendingRequestsQuery = `
@@ -48,15 +38,15 @@ const Alerts = async (req, res) => {
     WHERE req.aprovadoPorAdministrador = 0;
   `;
 
-  // Define the incomplete orders query (based on your previous pattern)
   const incompleteOrdersQuery = `
-    SELECT e.encomendaID, e.dataEncomenda, e.encomendaCompleta
-    FROM SERVICOSDB.dbo.Encomenda e
-    WHERE e.encomendaCompleta = 0;  -- This checks for orders that are incomplete
+    SELECT enc.encomendaID,  enc.estadoID,  enc.dataEncomenda,  enc.quantidadeEnviada,  enc.profissionalID,
+	pro.nomeProprio, pro.ultimoNome 
+	FROM Encomenda enc
+	JOIN Profissional_De_Saude pro ON enc.profissionalID = pro.profissionalID
+	WHERE enc.encomendaCompleta IS NULL OR enc.encomendaCompleta = 0
   `;
 
   try {
-    // Execute all queries concurrently
     const [medicationsResults, pendingOrdersResults, incompleteOrdersResults, pendingRequestsResults] = await Promise.all([
       pool.request().query(checkMedicationsQuery),
       pool.request().query(pendingOrdersQuery),
@@ -64,7 +54,6 @@ const Alerts = async (req, res) => {
       pool.request().query(pendingRequestsQuery),
     ]);
 
-    // Prepare the response
     const response = {
       medications: medicationsResults.recordset.length > 0 
         ? medicationsResults.recordset 
@@ -90,7 +79,6 @@ const Alerts = async (req, res) => {
   }
 };
 
-// Route configuration
 router.get('/', Alerts);
 
 module.exports = router;
