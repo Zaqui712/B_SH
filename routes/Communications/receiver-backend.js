@@ -19,16 +19,18 @@ router.post('/', async (req, res) => {
   try {
     const encomenda = req.body.encomenda; // The encomenda sent by the sender backend
 
-    if (!encomenda || !encomenda.encomendaID) {
+    if (!encomenda || !encomenda.encomendaSHID) {
       return res.status(400).json({ message: 'Invalid encomenda data' });
     }
 
-    const pool = await getPool();
+    // Convert encomendaSHID to encomendaID
+    const encomendaID = encomenda.encomendaSHID;
 
-    // Fetch the existing encomenda data from your database
+    // Fetch the existing encomenda data from your database using encomendaID
+    const pool = await getPool();
     const existingEncomendaQuery = `SELECT * FROM Encomendas WHERE encomendaID = @encomendaID`;
     const existingEncomendaResult = await pool.request()
-      .input('encomendaID', encomenda.encomendaID)
+      .input('encomendaID', encomendaID)  // Use encomendaSHID as encomendaID
       .query(existingEncomendaQuery);
 
     // Check if the encomenda exists in the database
@@ -50,7 +52,7 @@ router.post('/', async (req, res) => {
     await pool.request()
       .input('encomendaCompleta', sql.Bit, encomenda.encomendaCompleta)  // Update encomendaCompleta
       .input('dataEntrega', sql.Date, encomenda.dataEntrega)              // Update dataEntrega
-      .input('encomendaID', sql.Int, encomenda.encomendaID)               // Identify the encomenda by its ID
+      .input('encomendaID', sql.Int, encomendaID)                         // Use encomendaID instead of encomendaSHID
       .query(updateQuery);
 
     return res.json({ message: 'Encomenda updated successfully' });
