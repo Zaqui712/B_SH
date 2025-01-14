@@ -1,13 +1,18 @@
 const express = require('express');
+const cors = require('cors'); // Import cors package
 const { getPool } = require('../../db'); // Assuming you have a function to interact with the database
 const axios = require('axios');
-const sql = require('mssql'); // Assuming you're using SQL Server
+const sql = require('mssql');
 const PORT = 5000;
 
-const router = express.Router();
+const app = express();
+const router = express.Router(); // Use router to define routes
+
+// Use cors middleware to allow cross-origin requests
+app.use(cors()); // Enable CORS for all routes
 
 // Middleware to parse incoming JSON data
-router.use(express.json());
+app.use(express.json()); // Use express's built-in JSON parser middleware globally
 
 // Endpoint to receive orders from sender backend
 router.post('/', async (req, res) => {
