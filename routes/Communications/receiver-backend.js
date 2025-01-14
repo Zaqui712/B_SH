@@ -83,59 +83,48 @@ async function addStockToMedicamentoServicoHospitalar(encomendaID) {
 
     if (medicamentoResult.recordset.length > 0) {
       for (const row of medicamentoResult.recordset) {
-        const { quantidadeEnviada, medicamentoID } = row;
+  const { quantidade, medicamentoID } = row;
 
-        console.log(`Fetching current stock for medicamentoID: ${medicamentoID}`);
+  console.log(`Fetching current stock for medicamentoID: ${medicamentoID}`);
 
-        // Fetch the current quantidadeDisponivel for the medicamento
-        const currentStockQuery = `
-          SELECT quantidadeDisponivel
-          FROM Medicamento_Servico_Hospitalar
-          WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
-        `;
-        
-        const currentStockResult = await pool.request()
-          .input('medicamentoID', sql.Int, medicamentoID)
-          .input('servicoID', sql.Int, servicoID)
-          .query(currentStockQuery);
+  // Fetch the current quantidadeDisponivel for the medicamento
+  const currentStockQuery = `
+    SELECT quantidadeDisponivel
+    FROM Medicamento_Servico_Hospitalar
+    WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
+  `;
+  
+  const currentStockResult = await pool.request()
+    .input('medicamentoID', sql.Int, medicamentoID)
+    .input('servicoID', sql.Int, servicoID)
+    .query(currentStockQuery);
 
-        const currentQuantidadeDisponivel = currentStockResult.recordset.length > 0
-          ? currentStockResult.recordset[0].quantidadeDisponivel
-          : 0;
+  const currentQuantidadeDisponivel = currentStockResult.recordset.length > 0
+    ? currentStockResult.recordset[0].quantidadeDisponivel
+    : 0;
 
-        console.log(`Current quantidadeDisponivel: ${currentQuantidadeDisponivel}`);
+  console.log(`Current quantidadeDisponivel: ${currentQuantidadeDisponivel}`);
 
-        // Calculate the new stock by adding quantidadeEnviada (quantidadeAdicionar)
-        const newQuantidadeDisponivel = currentQuantidadeDisponivel + quantidadeEnviada;
+  // Calculate the new stock by adding quantidade
+  const newQuantidadeDisponivel = currentQuantidadeDisponivel + quantidade;
 
-        console.log(`Updating stock for medicamentoID: ${medicamentoID}, new quantidadeDisponivel: ${newQuantidadeDisponivel}`);
+  console.log(`Updating stock for medicamentoID: ${medicamentoID}, new quantidadeDisponivel: ${newQuantidadeDisponivel}`);
 
-        // Update the stock
-        const updateStockQuery = `
-          UPDATE Medicamento_Servico_Hospitalar
-          SET quantidadeDisponivel = @newQuantidadeDisponivel
-          WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
-        `;
+  // Update the stock
+  const updateStockQuery = `
+    UPDATE Medicamento_Servico_Hospitalar
+    SET quantidadeDisponivel = @newQuantidadeDisponivel
+    WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
+  `;
 
-        await pool.request()
-          .input('newQuantidadeDisponivel', sql.Int, newQuantidadeDisponivel)
-          .input('medicamentoID', sql.Int, medicamentoID)
-          .input('servicoID', sql.Int, servicoID)
-          .query(updateStockQuery);
+  await pool.request()
+    .input('newQuantidadeDisponivel', sql.Int, newQuantidadeDisponivel)
+    .input('medicamentoID', sql.Int, medicamentoID)
+    .input('servicoID', sql.Int, servicoID)
+    .query(updateStockQuery);
 
-        console.log(`Stock updated for medicamentoID: ${medicamentoID}`);
-      }
-
-      console.log('All stock updates completed');
-    } else {
-      console.error('No medicamento found for encomendaID:', encomendaID);
-      throw new Error('No medicamento found');
-    }
-  } catch (error) {
-    console.error(`Error in stock update for encomendaID ${encomendaID}:`, error.message);
-    console.error('Error adding stock to Medicamento_Servico_Hospitalar:', error);
-    throw new Error('Failed to add stock');
-  }
+  console.log(`Stock updated for medicamentoID: ${medicamentoID}`);
+}
 }
 
 // Function to get the servicoID from Profissional_De_Saude
