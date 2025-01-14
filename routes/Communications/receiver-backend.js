@@ -28,7 +28,7 @@ router.post('/', async (req, res) => {
 
     // Fetch the existing encomenda data from your database using encomendaID
     const pool = await getPool();
-    const existingEncomendaQuery = `SELECT * FROM Encomendas WHERE encomendaID = @encomendaID`;
+    const existingEncomendaQuery = `SELECT * FROM Encomenda WHERE encomendaID = @encomendaID`;
     const existingEncomendaResult = await pool.request()
       .input('encomendaID', encomendaID)  // Use encomendaSHID as encomendaID
       .query(existingEncomendaQuery);
@@ -43,7 +43,7 @@ router.post('/', async (req, res) => {
 
     // If the values need to be updated
     const updateQuery = `
-      UPDATE Encomendas
+      UPDATE Encomenda
       SET encomendaCompleta = @encomendaCompleta,
           dataEntrega = @dataEntrega
       WHERE encomendaID = @encomendaID
