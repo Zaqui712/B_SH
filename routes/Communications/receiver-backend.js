@@ -25,12 +25,18 @@ async function updateEstado(encomendaID) {
       WHERE encomendaID = @encomendaID
     `;
 
-    await pool.request()
+    // Log the query and parameters for debugging
+    console.log(`Running query to update estado for encomendaID: ${encomendaID}`);
+
+    const result = await pool.request()
       .input('estado', sql.Int, 4)               // Set estado to 4
       .input('encomendaID', sql.Int, encomendaID) // Use encomendaID to update the correct record
       .query(updateEstadoQuery);
-    
+
+    // Log the result to confirm the update
     console.log(`Estado updated to 4 for encomendaID: ${encomendaID}`);
+    console.log(result); // Inspect the result object
+
   } catch (error) {
     console.error('Error updating estado:', error.message);
     throw new Error('Failed to update estado');
@@ -77,6 +83,14 @@ router.post('/', async (req, res) => {
 
     // Now call the separate async function to update the estado
     await updateEstado(encomendaID); // Update estado to 4
+
+    // Verify the update by querying the Encomenda state
+    const verifyEstadoQuery = `SELECT estado FROM Encomenda WHERE encomendaID = @encomendaID`;
+    const estadoResult = await pool.request()
+      .input('encomendaID', encomendaID)
+      .query(verifyEstadoQuery);
+
+    console.log('Estado after update:', estadoResult.recordset[0].estado);
 
     return res.json({ message: 'Encomenda updated and estado set to 4 successfully' });
   } catch (error) {
