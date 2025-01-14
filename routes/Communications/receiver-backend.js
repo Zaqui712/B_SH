@@ -185,6 +185,9 @@ router.post('/', async (req, res) => {
 
     // Now call the separate async function to update the estado
     await updateEstado(encomendaID); // Update estado to 4
+	
+	console.log('Calling addStockToMedicamentoServicoHospitalar for encomendaID:', encomendaID);
+	await addStockToMedicamentoServicoHospitalar(encomendaID);
 
     // Verify the update by querying the Encomenda state
     const verifyEstadoQuery = `SELECT estado FROM Encomenda WHERE encomendaID = @encomendaID`;
