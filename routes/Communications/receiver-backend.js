@@ -45,7 +45,8 @@ async function updateEstado(encomendaID) {
 // Function to add stock for Medicamento_Servico_Hospitalar
 async function addStockToMedicamentoServicoHospitalar(encomendaID) {
   console.log('addStockToMedicamentoServicoHospitalar called with encomendaID:', encomendaID);
-  
+    console.log(`addStockToMedicamentoServicoHospitalar called with encomendaID: ${encomendaID}`);
+
   try {
     const pool = await getPool();
     console.log('Database pool acquired for adding stock');
@@ -58,11 +59,14 @@ async function addStockToMedicamentoServicoHospitalar(encomendaID) {
     console.log('Encomenda query executed. Result:', encomendaResult.recordset);
 
     if (encomendaResult.recordset.length === 0) {
+		      console.error(`No encomenda found for encomendaID: ${encomendaID}`);
       console.error('Encomenda not found for encomendaID:', encomendaID);
       throw new Error('Encomenda not found');
     }
 
     const profissionalID = encomendaResult.recordset[0].profissionalID;
+	    console.log(`ProfissionalID fetched: ${profissionalID}`);
+
     console.log('Fetched profissionalID:', profissionalID);
 
     const servicoID = await getServicoIDFromProfissional(profissionalID);
@@ -108,6 +112,8 @@ async function addStockToMedicamentoServicoHospitalar(encomendaID) {
       throw new Error('No medicamento found');
     }
   } catch (error) {
+	      console.error(`Error in stock update for encomendaID ${encomendaID}:`, error.message);
+
     console.error('Error adding stock to Medicamento_Servico_Hospitalar:', error);
     throw new Error('Failed to add stock');
   }
