@@ -27,7 +27,14 @@ cron.schedule('* * * * *', async () => {
        LEFT JOIN SERVICOSDB.dbo.Servico_Hospitalar sh ON p.servicoID = sh.servicoID
        LEFT JOIN SERVICOSDB.dbo.Medicamento_Encomenda me ON e.encomendaID = me.encomendaID
        LEFT JOIN SERVICOSDB.dbo.Medicamento m ON me.medicamentoID = m.medicamentoID`;
+
+    // Fetch the data from the database
     const result = await pool.request().query(query);
+
+    // Log the raw results to check values for dataEncomenda and dataEntrega
+    result.recordset.forEach(row => {
+      console.log('Row dataEncomenda:', row.dataEncomenda, 'dataEntrega:', row.dataEntrega);
+    });
 
     // Check if we have any results
     if (result.recordset.length === 0) {
@@ -80,40 +87,40 @@ cron.schedule('* * * * *', async () => {
     });
 
     // Map the encomendas and ensure that null dates are handled
-const approvedIncompleteEncomendas = encomendasArray.filter(encomenda => 
-  encomenda.aprovadoPorAdministrador === true && encomenda.encomendaCompleta !== true
-);
+    const approvedIncompleteEncomendas = encomendasArray.filter(encomenda =>
+      encomenda.aprovadoPorAdministrador === true && encomenda.encomendaCompleta !== true
+    );
 
-// Log the number of approved and incomplete encomendas
-console.log(`Number of approved and incomplete encomendas: ${approvedIncompleteEncomendas.length}`);
+    // Log the number of approved and incomplete encomendas
+    console.log(`Number of approved and incomplete encomendas: ${approvedIncompleteEncomendas.length}`);
 
-// Variable to count the number of successful sends
-let sentCount = 0;
+    // Variable to count the number of successful sends
+    let sentCount = 0;
 
-// Send the approved and incomplete encomendas as an array in a single request
-if (approvedIncompleteEncomendas.length > 0) {
-  try {
-    // Create the request body that includes all approved and incomplete encomendas
-    const requestBody = {
-      encomendas: approvedIncompleteEncomendas.map(encomenda => ({
-        encomendaID: encomenda.encomendaID,
-        estadoID: encomenda.estadoID,
-        fornecedorID: encomenda.fornecedorID,
-        quantidadeEnviada: encomenda.quantidadeEnviada,
-        nomeFornecedor: encomenda.nomeFornecedor,
-        profissionalNome: encomenda.profissionalNome,
-        // Include dates, ensuring null values are handled
-        dataEncomenda: encomenda.dataEncomenda ? encomenda.dataEncomenda : null,
-        dataEntrega: encomenda.dataEntrega ? encomenda.dataEntrega : null,
-        medicamentos: encomenda.medicamentos.map(med => ({
-          medicamentoID: med.medicamentoID,
-          nomeMedicamento: med.nomeMedicamento,
-          quantidade: med.quantidade
-        }))
-      }))
-    };
+    // Send the approved and incomplete encomendas as an array in a single request
+    if (approvedIncompleteEncomendas.length > 0) {
+      try {
+        // Create the request body that includes all approved and incomplete encomendas
+        const requestBody = {
+          encomendas: approvedIncompleteEncomendas.map(encomenda => ({
+            encomendaID: encomenda.encomendaID,
+            estadoID: encomenda.estadoID,
+            fornecedorID: encomenda.fornecedorID,
+            quantidadeEnviada: encomenda.quantidadeEnviada,
+            nomeFornecedor: encomenda.nomeFornecedor,
+            profissionalNome: encomenda.profissionalNome,
+            // Directly assign the values without checking for null
+            dataEncomenda: encomenda.dataEncomenda,
+            dataEntrega: encomenda.dataEntrega,
+            medicamentos: encomenda.medicamentos.map(med => ({
+              medicamentoID: med.medicamentoID,
+              nomeMedicamento: med.nomeMedicamento,
+              quantidade: med.quantidade
+            }))
+          }))
+        };
 
-    console.log('Request Body:', JSON.stringify(requestBody, null, 2));
+        console.log('Request Body:', JSON.stringify(requestBody, null, 2));
 
         const response = await axios.post('http://4.251.113.179:5000/receive-encomenda/', requestBody, {
           headers: {
