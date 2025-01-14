@@ -79,21 +79,23 @@ cron.schedule('* * * * *', async () => {
       console.log(`Encomenda ID: ${encomenda.encomendaID}, AprovadoPorAdministrador: ${encomenda.aprovadoPorAdministrador}`);
     });
 
-    // Filter encomendas to only include those that are approved by admin
-    const approvedEncomendas = encomendasArray.filter(encomenda => encomenda.aprovadoPorAdministrador === true);
+    // Filter encomendas to only include those that are approved by admin and not complete
+    const approvedIncompleteEncomendas = encomendasArray.filter(encomenda => 
+      encomenda.aprovadoPorAdministrador === true && encomenda.encomendaCompleta !== true
+    );
 
-    // Log the number of approved encomendas
-    console.log(`Number of approved encomendas: ${approvedEncomendas.length}`);
+    // Log the number of approved and incomplete encomendas
+    console.log(`Number of approved and incomplete encomendas: ${approvedIncompleteEncomendas.length}`);
 
     // Variable to count the number of successful sends
     let sentCount = 0;
 
-    // Send the approved encomendas as an array in a single request
-    if (approvedEncomendas.length > 0) {
+    // Send the approved and incomplete encomendas as an array in a single request
+    if (approvedIncompleteEncomendas.length > 0) {
       try {
-        // Create the request body that includes all approved encomendas
+        // Create the request body that includes all approved and incomplete encomendas
         const requestBody = {
-          encomendas: approvedEncomendas.map(encomenda => ({
+          encomendas: approvedIncompleteEncomendas.map(encomenda => ({
             encomendaID: encomenda.encomendaID,
             estadoID: encomenda.estadoID,
             fornecedorID: encomenda.fornecedorID,
@@ -119,7 +121,7 @@ cron.schedule('* * * * *', async () => {
         });
 
         console.log(`Encomendas sent successfully:`, response.status, response.data);
-        sentCount += approvedEncomendas.length; // Increment sent count by the number of encomendas sent
+        sentCount += approvedIncompleteEncomendas.length; // Increment sent count by the number of encomendas sent
       } catch (error) {
         // Log detailed error information
         if (error.response) {
@@ -129,7 +131,7 @@ cron.schedule('* * * * *', async () => {
         }
       }
     } else {
-      console.log('No approved encomendas to send.');
+      console.log('No approved and incomplete encomendas to send.');
     }
 
     // Log how many encomendas were sent successfully
