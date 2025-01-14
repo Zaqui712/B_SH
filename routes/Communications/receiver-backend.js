@@ -18,6 +18,7 @@ app.use(express.json()); // Use express's built-in JSON parser middleware global
 router.post('/', async (req, res) => {
   try {
     const encomenda = req.body.encomenda; // The encomenda sent by the sender backend
+    console.log('Received encomenda:', encomenda); // Log the encomenda object
 
     if (!encomenda || !encomenda.encomendaSHID || !encomenda.quantidade) {
       return res.status(400).json({ message: 'Invalid encomenda data' });
@@ -26,6 +27,8 @@ router.post('/', async (req, res) => {
     // Convert encomendaSHID to encomendaID
     const encomendaID = encomenda.encomendaSHID;
     const quantidade = encomenda.quantidade; // Assuming quantity is passed in the encomenda
+
+    console.log(`Processing encomenda with encomendaID: ${encomendaID} and quantity: ${quantidade}`);
 
     // Fetch the existing encomenda data from your database using encomendaID
     const pool = await getPool();
@@ -41,15 +44,17 @@ router.post('/', async (req, res) => {
 
     // Get the existing encomenda data
     const existingEncomenda = existingEncomendaResult.recordset[0];
+    console.log('Existing encomenda data:', existingEncomenda); // Log existing encomenda data
 
     // Check if encomenda is already complete (encomendaCompleta = true)
     if (existingEncomenda.encomendaCompleta === true) {
       return res.status(400).json({ message: 'Encomenda is already complete, cannot be updated' });
     }
 
-    // Step 1: Get the medicamentoID and servicoID from the encomenda (assuming these are part of the encomenda object)
+    // Step 1: Get the medicamentoID and servicoID from the encomenda
     const medicamentoID = encomenda.medicamentoID;
     const servicoID = encomenda.servicoID;
+    console.log(`Medicamento ID: ${medicamentoID}, Servico ID: ${servicoID}`);
 
     // Step 2: Get the current stock of the Medicamento_Servico_Hospitalar for the given medicamentoID and servicoID
     const currentStockQuery = `
@@ -66,9 +71,11 @@ router.post('/', async (req, res) => {
     }
 
     const currentStock = currentStockResult.recordset[0].quantidadeDisponivel;
+    console.log(`Current stock for medicamentoID ${medicamentoID} and servicoID ${servicoID}: ${currentStock}`); // Log current stock
 
     // Step 3: Calculate the new stock (existing stock + new quantity)
     const newStock = currentStock + quantidade;
+    console.log(`New stock calculated: ${newStock}`); // Log the new stock value
 
     // Step 4: Update the stock in Medicamento_Servico_Hospitalar with the new value
     const updateStockQuery = `
@@ -77,11 +84,13 @@ router.post('/', async (req, res) => {
       WHERE medicamentoID = @medicamentoID AND servicoID = @servicoID
     `;
     
-    await pool.request()
+    const updateStockResult = await pool.request()
       .input('newStock', sql.Int, newStock) // New stock after adding quantity
       .input('medicamentoID', sql.Int, medicamentoID) // medicamentoID from encomenda
       .input('servicoID', sql.Int, servicoID) // servicoID from encomenda
       .query(updateStockQuery);
+    
+    console.log('Stock updated successfully'); // Log successful stock update
 
     // Update encomenda table with encomendaCompleta, dataEntrega, and estado
     const updateEncomendaQuery = `
@@ -92,12 +101,14 @@ router.post('/', async (req, res) => {
       WHERE encomendaID = @encomendaID
     `;
 
-    await pool.request()
+    const updateEncomendaResult = await pool.request()
       .input('encomendaCompleta', sql.Bit, encomenda.encomendaCompleta)  // Update encomendaCompleta
       .input('dataEntrega', sql.Date, encomenda.dataEntrega)              // Update dataEntrega
       .input('estado', sql.Int, 4)                                         // Set estado to 4
       .input('encomendaID', sql.Int, encomendaID)                         // Use encomendaID instead of encomendaSHID
       .query(updateEncomendaQuery);
+
+    console.log('Encomenda updated successfully'); // Log encomenda update success
 
     return res.json({ message: 'Encomenda updated and stock adjusted successfully' });
   } catch (error) {
